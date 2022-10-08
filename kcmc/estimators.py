@@ -9,14 +9,18 @@ from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
 from sklearn.linear_model import QuantileRegressor
 
 
+f_divergences = [
+    'KL', 'inverse KL', 'Jensen-Shannon', 'squared Hellinger',
+    'Pearson chi squared', 'Neyman chi squared', 'total variation'
+]
 
-def IPW(Y, T, X, p_t, policy):
+def ipw(Y, T, X, p_t, policy):
     n = p_t.shape[0]
     r = Y * policy(X)[range(n), T]
     est = torch.mean(r / torch.as_tensor(p_t))
     return est
 
-def Hajek(Y, T, X, p_t, policy, return_w=False):
+def hajek(Y, T, X, p_t, policy, return_w=False):
     n = p_t.shape[0]
     r = Y * policy(X)[range(n), T]
     p_t_new = np.empty_like(p_t)
@@ -25,7 +29,7 @@ def Hajek(Y, T, X, p_t, policy, return_w=False):
     est = torch.mean(r / torch.as_tensor(p_t_new))
     return est
 
-def confoundingRobustEstimator(
+def confounding_robust_estimator(
     Y, T, X, p_t, policy,
     D=200,
     lambd=1.5, 
@@ -67,13 +71,16 @@ def confoundingRobustEstimator(
         if lr_box_const:
             constraints.extend(get_likelihood_ratio_box_constraint(w, p_t, lambd))
         if f_const:
+            assert f_divergence in f_divergences, f"Supported f-divergences are {f_divergences}."
             constraints.extend(get_f_constraint(w, p_t, gamma, f_divergence))
             constraints.append(cp.sum(-cp.log(w * p_t)) <= 0.1)
         objective = cp.Minimize(cp.sum(r_np * w))
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK if f_const else cp.ECOS)
-        
-        print(problem.status)
+
+    if problem.status != 'optimal':
+        raise ValueError(f"The optimizer found the associated convex programming to be {problem.status}.")
+
     w = w.value
     est = torch.mean(torch.as_tensor(w) * r)
     return (est, w) if return_w else est
@@ -101,7 +108,7 @@ def get_hajek_constraint(w, T, p_t):
 def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const):
     n = T.shape[0]
     D = min(D, n)
-    M, u, Cov_z, D = getGPQC(T, X, p_t, D, sigma2, kernel)
+    M, u, Cov_z, D = get_gpqc(T, X, p_t, D, sigma2, kernel)
     chi2_bound = chi2(df=D).ppf(1 - alpha)
     
     z = cp.Variable(D)
@@ -114,7 +121,7 @@ def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_co
         ]
     return constraints
 
-def getGPQC(T, X, p_t, D, sigma2, kernel):
+def get_gpqc(T, X, p_t, D, sigma2, kernel):
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
     TX /= TX.std(axis=0)[None, :]
@@ -133,7 +140,7 @@ def cutoff_neg_eigvals(S, V):
     S = S[S > 1e-6]
     return S, V
 
-def get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, lambd):
+def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
     USE_KERNEL = False
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
@@ -143,7 +150,7 @@ def get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, lambd):
         TX = KernelPCA(30).fit_transform(TX)
     Q = QuantileRegressor(quantile=1. / (lambd + 1), alpha=0.).fit(TX, Y).predict(TX) # any regressor will do, 
     ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
-    return [cp.scalar_product(pi_np * Q, w) == np.sum(pi_np * Q / p_t)]
+    return [cp.scalar_product(pi * Q, w) == np.sum(pi * Q / p_t)]
 
 def get_tan_box_constraint(w, p_t, p_t_original, lambd):
     # p_t does not always satisfy p_t < 1, therefore, we use p_t_original
