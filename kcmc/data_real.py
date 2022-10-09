@@ -36,9 +36,9 @@ def generate_data():
     # df.describe()
 
     Y = df.wage.to_numpy()
-    Y = torch.as_tensor(Y)
+    Y = torch.as_tensor(Y).float()
     T = df.union.to_numpy()
-    X = df.drop(columns=['wage', 'union']).to_numpy()
+    X = df.drop(columns=['wage', 'union']).to_numpy().astype(float)
 
     return Y, T, X
 

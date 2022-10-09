@@ -1,9 +1,0 @@
-data_type,policy_name,sample_size,seed,lower_bound,upper_bound,D,lambd,gamma,alpha,hard_kernel_const,f_divergence,hajek_const,kernel_const,quantile_const,regressor_const,tan_box_const,lr_box_const,f_const,return_w
-synthetic continuous,toy_policy,1000,0,1.4153346631222947,1.6933603852839487,200,1.5,0.01,0.05,False,total variation,False,False,False,True,False,True,False,False
-synthetic continuous,toy_policy,1000,0,1.4153346631222947,1.6933603852839487,200,1.5,0.01,0.05,False,total variation,False,False,False,True,False,True,False,False
-synthetic continuous,toy_policy,1000,1,1.2285587777556388,1.4746719046295602,200,1.5,0.01,0.05,False,total variation,False,False,False,True,False,True,False,False
-synthetic continuous,toy_policy,1000,0,1.4153346631222947,1.6933603852839487,200,1.5,0.01,0.05,0.01,RBF(length_scale=1),False,False,total variation,False,False,False,True,False,True,False
-synthetic continuous,toy_policy,1000,1,1.2285587777556388,1.4746719046295602,200,1.5,0.01,0.05,0.01,RBF(length_scale=1),False,False,total variation,False,False,False,True,False,True,False
-synthetic binary,toy_policy,1000,0,2.969142323761651,3.9466210354768148,200,1.5,0.01,0.05,0.01,RBF(length_scale=1),False,False,total variation,False,False,False,True,False,True,False
-synthetic continuous,toy_policy,1000,0,1.412040871224518,1.6874021695335935,200,1.5,0.01,0.05,0.01,RBF(length_scale=1),False,False,total variation,False,False,True,False,False,True,False
-synthetic continuous,wrapped_policy,100,0,3.4285676422757967,4.016507569228299,200,1.5,0.01,0.05,0.01,RBF(length_scale=1),False,False,total variation,False,False,True,False,False,True,False

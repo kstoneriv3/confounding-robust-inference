@@ -59,7 +59,7 @@ def confounding_robust_estimator(
 
     # normalization for simply guaranteeing the feasibility for Hajek constraints
     p_t_original = p_t
-    p_t = normalize_p_t(p_t, T) if normalize_p_t else p_t
+    p_t = get_normalized_p_t(p_t, T) if normalize_p_t else p_t
         
     with warnings.catch_warnings():  # to avoid user warning about multiplication operator with `*` and `@`
         warnings.simplefilter("ignore")
@@ -99,7 +99,7 @@ def confounding_robust_estimator(
     est = torch.mean(torch.as_tensor(w) * r)
     return (est, w) if return_w else est
 
-def normalize_p_t(p_t, T):
+def get_normalized_p_t(p_t, T):
     p_t_new = np.empty_like(p_t)
     for t in set(T):
         p_t_new[T==t] = p_t[T==t] * np.mean((T==t) / p_t)
