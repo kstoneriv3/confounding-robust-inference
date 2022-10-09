@@ -1,12 +1,15 @@
 import warnings
+
 import numpy as np
-import cvxpy as cp
-import torch
 from scipy.linalg import eigh
 from scipy.stats import chi2
+
+import cvxpy as cp
+from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
 from sklearn.linear_model import QuantileRegressor
+import torch
 
 
 f_divergences = [
@@ -16,13 +19,13 @@ f_divergences = [
 
 def ipw(Y, T, X, p_t, policy):
     n = p_t.shape[0]
-    r = Y * policy(X)[range(n), T]
+    r = Y * policy(X, T)
     est = torch.mean(r / torch.as_tensor(p_t))
     return est
 
 def hajek(Y, T, X, p_t, policy, return_w=False):
     n = p_t.shape[0]
-    r = Y * policy(X)[range(n), T]
+    r = Y * policy(X, T)
     p_t_new = np.empty_like(p_t)
     for t in set(T):
         p_t_new[T==t] = p_t[T==t] * np.mean((T==t) / p_t)
@@ -38,6 +41,7 @@ def confounding_robust_estimator(
     kernel=RBF(),
     sigma2=1.0,
     hard_kernel_const=False,
+    normalize_p_t=False,
     f_divergence='KL', 
     hajek_const=False,
     kernel_const=False,
@@ -48,12 +52,13 @@ def confounding_robust_estimator(
     return_w=False,
 ):
     n = T.shape[0]
-    pi = policy(X)[range(n), T] 
+    pi = policy(X, T) 
     r = Y * pi
     Y_np, r_np, pi_np = map(lambda tensor: tensor.data.numpy(), (Y, r, pi))
-    
+
+    # normalization for simply guaranteeing the feasibility for Hajek constraints
     p_t_original = p_t
-    p_t = normalize_p_t(p_t, T)  # normalization for simply guaranteeing the feasibility for Hajek constraints
+    p_t = normalize_p_t(p_t, T) if normalize_p_t else p_t
         
     with warnings.catch_warnings():  # to avoid user warning about multiplication operator with `*` and `@`
         warnings.simplefilter("ignore")
@@ -64,7 +69,8 @@ def confounding_robust_estimator(
         if kernel_const:
             constraints.extend(get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const))
         if quantile_const:
-            assert f_const == False, "quantile constraint is only for box constraints"
+            # assert f_const == False, "quantile constraint is only for box constraints"
+            # As it is a form of hard kernel constraints, it is OK to use it, even if it's not the optimal constraint.
             constraints.extend(get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, lambd))
         if tan_box_const:
             constraints.extend(get_tan_box_constraint(w, p_t, p_t_original, lambd))
@@ -73,13 +79,18 @@ def confounding_robust_estimator(
         if f_const:
             assert f_divergence in f_divergences, f"Supported f-divergences are {f_divergences}."
             constraints.extend(get_f_constraint(w, p_t, gamma, f_divergence))
-            constraints.append(cp.sum(-cp.log(w * p_t)) <= 0.1)
         objective = cp.Minimize(cp.sum(r_np * w))
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK if f_const else cp.ECOS)
 
     if problem.status != 'optimal':
-        raise ValueError(f"The optimizer found the associated convex programming to be {problem.status}.")
+        raise ValueError(
+            """
+            The optimizer found the associated convex programming to be {}. 
+            If you are using the hajek constraints and getting an infeasibility error,
+            consider using the `normalize_p_t=True`.
+            """.format(problem.status)
+        )
 
     w = w.value
     est = torch.mean(torch.as_tensor(w) * r)
@@ -141,13 +152,13 @@ def cutoff_neg_eigvals(S, V):
     return S, V
 
 def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
-    USE_KERNEL = False
+    USE_KERNEL = True
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
     TX /= TX.std(axis=0)[None, :]
     if USE_KERNEL:
         kernel = fit_gp_kernel(Y, T, X)
-        TX = KernelPCA(30).fit_transform(TX)
+        TX = KernelPCA(30, kernel='rbf').fit_transform(TX)
     Q = QuantileRegressor(quantile=1. / (lambd + 1), alpha=0.).fit(TX, Y).predict(TX) # any regressor will do, 
     ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     return [cp.scalar_product(pi * Q, w) == np.sum(pi * Q / p_t)]

@@ -1,6 +1,10 @@
 import numpy as np
 import torch
+from sklearn.linear_model import LogisticRegressionCV
 
+
+
+### Synthetic Data from Kallus and Zhou 2018, 2021
 
 beta0 = 2.5
 beta0_t = -2
@@ -11,7 +15,7 @@ beta_xi_t = -2
 beta_e_x = np.asarray([0, .75, -.5, 0, -1])
 mu_x = np.asarray([-1, .5, -1, 0, -1]);
 
-def generate_data_binary(n):
+def generate_data(n):
     xi = (np.random.rand(n) > 0.5).astype(int)
     X = mu_x[None, :] + np.random.randn(n * 5).reshape(n, 5)
     eps = [np.random.randn(n) for t in (0, 1)]
@@ -29,7 +33,7 @@ def generate_data_binary(n):
     e_xu = e_xu * T + (1 - e_xu) * (1 - T)
     return torch.tensor(Y), T, X, U, e_x, e_xu
 
-def evaluate_policy_binary(policy, n=1000):
+def evaluate_policy(policy, n=1000):
     xi = (np.random.rand(n) > 0.5).astype(int)
     X = mu_x[None, :] + np.random.randn(n * 5).reshape(n, 5)
     eps = [np.random.randn(n) for t in (0, 1)]
@@ -38,8 +42,11 @@ def evaluate_policy_binary(policy, n=1000):
         for t in (0, 1)
     ])
     Y = torch.as_tensor(Y)
-    pi = policy(X)
-    Y = torch.sum(Y.T * pi, axis=1)
+    pi = policy(X, torch.zeros(n))
+    Y = Y[0] * pi + Y[1] * (1 - pi)
     return Y.mean()
 
-
+def estimate_p_t(X, T):
+    model = LogisticRegressionCV().fit(X, T)
+    p_t = model.predict_proba(X)[range(T.shape[0]), T]
+    return p_t
