@@ -8,7 +8,7 @@ import cvxpy as cp
 from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
-from sklearn.linear_model import QuantileRegressor
+from sklearn.linear_model import QuantileRegressor, LinearRegression
 import torch
 
 
@@ -46,6 +46,7 @@ def confounding_robust_estimator(
     hajek_const=False,
     kernel_const=False,
     quantile_const=False,
+    regressor_const=False,
     tan_box_const=False,
     lr_box_const=False,
     f_const=False,
@@ -72,6 +73,8 @@ def confounding_robust_estimator(
             # assert f_const == False, "quantile constraint is only for box constraints"
             # As it is a form of hard kernel constraints, it is OK to use it, even if it's not the optimal constraint.
             constraints.extend(get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, lambd))
+        if regressor_const:
+            constraints.extend(get_regressor_constraint(w, Y_np, pi_np, T, X, p_t))
         if tan_box_const:
             constraints.extend(get_tan_box_constraint(w, p_t, p_t_original, lambd))
         if lr_box_const:
@@ -152,7 +155,7 @@ def cutoff_neg_eigvals(S, V):
     return S, V
 
 def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
-    USE_KERNEL = True
+    USE_KERNEL = False
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
     TX /= TX.std(axis=0)[None, :]
@@ -162,6 +165,18 @@ def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
     Q = QuantileRegressor(quantile=1. / (lambd + 1), alpha=0.).fit(TX, Y).predict(TX) # any regressor will do, 
     ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     return [cp.scalar_product(pi * Q, w) == np.sum(pi * Q / p_t)]
+
+def get_regressor_constraint(w, Y, pi, T, X, p_t):
+    USE_KERNEL = False
+    n = T.shape[0]
+    TX = np.concatenate([T[:, None], X], axis=1)
+    TX /= TX.std(axis=0)[None, :]
+    if USE_KERNEL:
+        kernel = fit_gp_kernel(Y, T, X)
+        TX = KernelPCA(30, kernel='rbf').fit_transform(TX)
+    Y_reg = LinearRegression().fit(TX, Y).predict(TX) # any regressor will do, 
+    ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
+    return [cp.scalar_product(pi * Y_reg, w) == np.sum(pi * Y_reg / p_t)]
 
 def get_tan_box_constraint(w, p_t, p_t_original, lambd):
     # p_t does not always satisfy p_t < 1, therefore, we use p_t_original

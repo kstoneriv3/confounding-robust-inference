@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from .data_binary import estimate_p_t
 
-def load_data():
+def generate_data():
     df = pd.read_csv("union1978.csv")
     df.columns = ("id", "age", "black", "educ76", "smsa", "south", "married", "enrolled",
                      "educ78", "manufacturing", "occupation", "union", "wage")
@@ -25,8 +25,9 @@ def load_data():
         
     df.occupation = df.occupation.apply(get_occupation_id)
 
-    df = df.drop(columns=['id', 'educ76', 'educ78', 'enrolled'])
     df = df[df.occupation != 2]
+    df = df[df.enrolled == 0]
+    df = df.drop(columns=['id', 'educ76', 'educ78', 'enrolled'])
 
     # remove missing values
     missing = np.logical_or(df.to_numpy() == -4, df.to_numpy() == -5)
