@@ -29,7 +29,7 @@ def generate_data(n):
     e_x = np.exp(z) / (1 + np.exp(z))
     mu_xu = (6 * e_x) / (4 + 5 * U + e_x * (2 - 5 * U))
     mu_xu = np.clip(mu_xu, 1e-6, 1 - 1e-6)
-    unif = np.random.rand(n)
+    #unif = np.random.rand(n)
     a, b = 4 * mu_xu + 1, 4 * (1 - mu_xu) + 1
     T = beta.rvs(a, b)
     e_xu = beta.pdf(T, a, b)

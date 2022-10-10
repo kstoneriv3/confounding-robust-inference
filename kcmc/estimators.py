@@ -8,7 +8,9 @@ import cvxpy as cp
 from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
-from sklearn.linear_model import QuantileRegressor, LinearRegression
+from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import QuantileRegressor  annoyingly slow!
+from kcmc.fast_quantile_regressor import QuantileRegressor
 import torch
 
 
