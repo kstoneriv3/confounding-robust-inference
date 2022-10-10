@@ -1,39 +1,76 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import numpy as np
-import torch
-import pandas as pd
-import numpy as np
+import fire
 
-from matplotlib import pyplot as plt
-plt.style.use("seaborn-whitegrid")
-from matplotlib.cm import tab10
-from tqdm.auto import tqdm
-
-import kcmc
-from kcmc.estimators import confounding_robust_estimator, hajek, ipw
-from kcmc.experiment_policy_evaluation import run_policy_evaluation_experiment
-
-
-
-MAX_GAMMA = {
-    'KL': 0.02,
-    'inverse KL': 0.04,
-    'Jensen-Shannon': 0.03,
-    'squared Hellinger': 0.01,
-    'Pearson chi squared':0.06,
-    'Neyman chi squared':0.03,
-    'total variation': 0.015,
-}
 
 def main(F_DIVERGENCE):
+
+    # In[2]:
+
+    import numpy as np
+    import torch
+    import pandas as pd
+    import numpy as np
+
+
+    # In[3]:
+
+
+    from matplotlib import pyplot as plt
+    plt.style.use("seaborn-whitegrid")
+    from matplotlib.cm import tab10
+
+
+    # In[4]:
+
+
+    from tqdm.auto import tqdm
+
+
+    # In[5]:
+
+
+    import kcmc
+    from kcmc.estimators import confounding_robust_estimator, hajek, ipw
+    from kcmc.experiment_policy_evaluation import run_policy_evaluation_experiment
+
+
+    # In[6]:
+
+
+    kcmc.estimators.f_divergences
+
+
+    # In[88]:
+
+
+    # F_DIVERGENCE = 'KL'
+
+
+    # In[89]:
+
+
+    MAX_GAMMA = {
+        'KL': 0.02,
+        'inverse KL': 0.04,
+        'Jensen-Shannon': 0.03,
+        'squared Hellinger': 0.01,
+        'Pearson chi squared':0.06,
+        'Neyman chi squared':0.03,
+        'total variation': 0.015,
+    }
+
+
+    # # Binary Synthetic Data
+
+    # In[15]:
 
 
     from kcmc.data_binary import evaluate_policy, generate_data, estimate_p_t
 
 
-    # In[59]:
+    # In[45]:
 
 
     beta_e_x = np.asarray([0, .75, -.5, 0, -1])
@@ -46,7 +83,7 @@ def main(F_DIVERGENCE):
         return (1. - T) * e_x + T * (1. - e_x)
 
 
-    # In[60]:
+    # In[17]:
 
 
     # Guessing kernel with approximate solution
@@ -62,7 +99,7 @@ def main(F_DIVERGENCE):
     kernel = gp_kernel.k2
 
 
-    # In[61]:
+    # In[18]:
 
 
     hajek(Y, T, X, p_t, toy_policy)
@@ -70,7 +107,7 @@ def main(F_DIVERGENCE):
 
     # ### Experiment of changing sensitivity parameter $\gamma$ 
 
-    # In[62]:
+    # In[52]:
 
 
     def update_base_method(**new_params):
@@ -79,12 +116,6 @@ def main(F_DIVERGENCE):
         return ret
 
     grid_methods = {
-        'ZSB': update_base_method(
-            hajek_const=True,
-            normalize_p_t=True,
-            f_const=True, 
-            f_divergence=F_DIVERGENCE,
-        ),
         'GP_KCMC': update_base_method(
             hajek_const=True,
             normalize_p_t=True,
@@ -111,12 +142,18 @@ def main(F_DIVERGENCE):
             f_divergence=F_DIVERGENCE,
             quantile_const=True,
         ),
+        'ZSB': update_base_method(
+            hajek_const=True,
+            normalize_p_t=True,
+            f_const=True, 
+            f_divergence=F_DIVERGENCE,
+        ),
     }
 
     grid_gamma = [MAX_GAMMA[F_DIVERGENCE] * (0.01 + 0.1 * i) for i in range(11)]
 
 
-    # In[ ]:
+    # In[63]:
 
 
     log_file=f'logs/policy_evaluation_synthetic_binary_changing_gamma_{F_DIVERGENCE}.csv'
@@ -133,26 +170,19 @@ def main(F_DIVERGENCE):
     pbar.close()
 
 
-    # In[ ]:
+    # In[90]:
 
 
     df = pd.read_csv(f'logs/policy_evaluation_synthetic_binary_changing_gamma_{F_DIVERGENCE}.csv')
 
 
-    # In[ ]:
+    # In[91]:
 
 
     df.head()
 
 
-    # In[ ]:
-
-
-    # due to the numerical rounding, some of the original values are invalid indices
-    grid_gamma = df.gamma.unique()  
-
-
-    # In[ ]:
+    # In[92]:
 
 
     df_grouped = df.groupby(by=['log_info', 'gamma'])['lower_bound', 'upper_bound']
@@ -160,12 +190,19 @@ def main(F_DIVERGENCE):
     values_std = df_grouped.std()
 
 
-    # In[ ]:
+    # In[93]:
+
+
+    # due to the numerical rounding, some of the original values are invalid indices
+    grid_gamma = sorted(set(tup[1] for tup in df_grouped.indices))
+
+
+    # In[94]:
 
 
     colors = {method: tab10((0.5 + i) / 10) for i, method in enumerate(grid_methods.keys())}
     legend_targets = []
-    legend_tags = ["ZSB", "low-rank GP KCMC ($D=100$)", "hard KCMC ($D=100$)", "QB"]
+    legend_tags = ["low-rank GP KCMC ($D=100$)", "hard KCMC ($D=100$)", "QB", "ZSB"]
 
     for method_name in grid_methods.keys():
         upper = np.array([values_mean.loc[(method_name, gamma)]['upper_bound'] for gamma in grid_gamma])
@@ -182,7 +219,8 @@ def main(F_DIVERGENCE):
     plt.legend(legend_targets, legend_tags)
     plt.xlabel(r"Sensitivity parameter $\gamma$")
     plt.ylabel(r"Upper/lower bounds of policy value")
-    plt.xlim([1.0, 2.0])
+    plt.xlim([0, MAX_GAMMA[F_DIVERGENCE]])
+    plt.ylim([2.6, 5.2])
     plt.savefig(f'logs/policy_evaluation_synthetic_binary_changing_gamma_{F_DIVERGENCE}.pdf')
 
 
@@ -192,13 +230,13 @@ def main(F_DIVERGENCE):
 
     # # Continuous Synthetic Data
 
-    # In[ ]:
+    # In[69]:
 
 
     from kcmc.data_continuous import evaluate_policy, generate_data, estimate_p_t
 
 
-    # In[ ]:
+    # In[70]:
 
 
     def wrap_continuous_policy(policy):
@@ -220,22 +258,9 @@ def main(F_DIVERGENCE):
         return torch.distributions.beta.Beta(a, b)
 
 
-    # In[ ]:
-
-
-    beta_e_x = np.asarray([0, .75, -.5, 0, -1])
-
-    def toy_policy(X, T):
-        n = X.shape[0]
-        T = torch.as_tensor(T)
-        z = torch.as_tensor(X) @ torch.as_tensor(beta_e_x)
-        e_x = torch.exp(z) / (1 + torch.exp(z))
-        return (1. - T) * e_x + T * (1. - e_x)
-
-
     # ### Experiment of changing sensitivity parameter $\gamma$ 
 
-    # In[ ]:
+    # In[58]:
 
 
     def update_base_method(**new_params):
@@ -286,26 +311,20 @@ def main(F_DIVERGENCE):
     pbar.close()
 
 
-    # In[ ]:
+    # In[95]:
 
 
     df = pd.read_csv(f'logs/policy_evaluation_synthetic_continuous_changing_gamma_{F_DIVERGENCE}.csv')
 
 
-    # In[ ]:
-
-
-    df.head()
-
-
-    # In[ ]:
+    # In[96]:
 
 
     # due to the numerical rounding, some of the original values are invalid indices
     grid_gamma = df.gamma.unique()  
 
 
-    # In[ ]:
+    # In[97]:
 
 
     df_grouped = df.groupby(by=['log_info', 'gamma'])['lower_bound', 'upper_bound']
@@ -313,12 +332,12 @@ def main(F_DIVERGENCE):
     values_std = df_grouped.std()
 
 
-    # In[ ]:
+    # In[98]:
 
 
     colors = {method: tab10((0.5 + i) / 10) for i, method in enumerate(grid_methods.keys())}
     legend_targets = []
-    legend_tags = ["ZSB", "low-rank GP KCMC ($D=100$)", "hard KCMC ($D=100$)", "QB"]
+    legend_tags = ["low-rank GP KCMC ($D=100$)", "hard KCMC ($D=100$)", "QB", "ZSB"]
 
     for method_name in grid_methods.keys():
         upper = np.array([values_mean.loc[(method_name, gamma)]['upper_bound'] for gamma in grid_gamma])
@@ -335,7 +354,8 @@ def main(F_DIVERGENCE):
     plt.legend(legend_targets, legend_tags)
     plt.xlabel(r"Sensitivity parameter $\gamma$")
     plt.ylabel(r"Upper/lower bounds of policy value")
-    plt.xlim([1.0, 2.0])
+    plt.xlim([0, MAX_GAMMA[F_DIVERGENCE]])
+    plt.ylim([3, 6.0])
     plt.savefig(f'logs/policy_evaluation_synthetic_continuous_changing_gamma_{F_DIVERGENCE}.pdf')
 
 
@@ -343,5 +363,3 @@ def main(F_DIVERGENCE):
 if __name__ == '__main__':
     import fire
     fire.Fire(main)
-
-
