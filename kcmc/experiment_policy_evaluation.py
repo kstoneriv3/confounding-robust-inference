@@ -7,12 +7,13 @@ from kcmc.estimators import confounding_robust_estimator
 
 EXAMPLE_PARAMS = {
     'D': 200,
-    'lambd': 1.5, 
+    'Gamma': 1.5, 
     'gamma': 0.01,
     'alpha': 0.05,
     'sigma2': 0.01,
     'kernel': RBF(),
     'hard_kernel_const': False,
+    'rescale_kernel': False,
     'normalize_p_t': False,
     'f_divergence': 'total variation', 
     'hajek_const': False,
@@ -31,6 +32,7 @@ def run_policy_evaluation_experiment(
     assert set(params.keys()) == set(EXAMPLE_PARAMS.keys())
     for seed in range(seed0, seed0 + n_seeds):
         Y, T, X, p_t = get_data(data_type, sample_size, seed)
+        lower_bound = confounding_robust_estimator(Y, T, X, p_t, policy, **params).data.numpy()
         try:
             lower_bound = confounding_robust_estimator(Y, T, X, p_t, policy, **params).data.numpy()
             upper_bound = -confounding_robust_estimator(-Y, T, X, p_t, policy, **params).data.numpy()

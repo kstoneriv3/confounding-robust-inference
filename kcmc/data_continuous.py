@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from scipy.stats import beta
 
@@ -52,7 +53,9 @@ def evaluate_policy(policy, n=1000, requires_grad=False):
 
 def estimate_p_t(X, T):
     Z = KernelPCA(n_components=2, kernel='rbf', gamma=0.01).fit_transform(X)
-    model = BetaModel(endog=T, exog=np.concatenate([Z, X], axis=1))
-    params = model.fit().params
+    with warnings.catch_warnings():  # to avoid user warning about multiplication operator with `*` and `@`
+        warnings.simplefilter("ignore")
+        model = BetaModel(endog=T, exog=np.concatenate([Z, X], axis=1))
+        params = model.fit().params
     p_t = np.exp(model.loglikeobs(params))
     return p_t

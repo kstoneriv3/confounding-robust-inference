@@ -37,12 +37,13 @@ def hajek(Y, T, X, p_t, policy, return_w=False):
 def confounding_robust_estimator(
     Y, T, X, p_t, policy,
     D=200,
-    lambd=1.5, 
+    Gamma=1.5, 
     gamma=0.5,
     alpha=0.05,
     kernel=RBF(),
     sigma2=1.0,
     hard_kernel_const=False,
+    rescale_kernel=False,  # very helpful in continuous domain
     normalize_p_t=False,
     f_divergence='KL', 
     hajek_const=False,
@@ -70,17 +71,17 @@ def confounding_robust_estimator(
         if hajek_const:
             constraints.extend(get_hajek_constraint(w, T, p_t))
         if kernel_const:
-            constraints.extend(get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const))
+            constraints.extend(get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const, rescale_kernel))
         if quantile_const:
             # assert f_const == False, "quantile constraint is only for box constraints"
             # As it is a form of hard kernel constraints, it is OK to use it, even if it's not the optimal constraint.
-            constraints.extend(get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, lambd))
+            constraints.extend(get_quantile_constraint(w, Y_np, pi_np, T, X, p_t, Gamma))
         if regressor_const:
             constraints.extend(get_regressor_constraint(w, Y_np, pi_np, T, X, p_t))
         if tan_box_const:
-            constraints.extend(get_tan_box_constraint(w, p_t, p_t_original, lambd))
+            constraints.extend(get_tan_box_constraint(w, p_t, p_t_original, Gamma))
         if lr_box_const:
-            constraints.extend(get_likelihood_ratio_box_constraint(w, p_t, lambd))
+            constraints.extend(get_likelihood_ratio_box_constraint(w, p_t, Gamma))
         if f_const:
             assert f_divergence in f_divergences, f"Supported f-divergences are {f_divergences}."
             constraints.extend(get_f_constraint(w, p_t, gamma, f_divergence))
@@ -121,10 +122,10 @@ def get_hajek_constraint(w, T, p_t):
         constraints.append(cp.sum(w[T==t]) == n)
     return constraints
 
-def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const):
+def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const, rescale_kernel):
     n = T.shape[0]
     D = min(D, n)
-    M, u, Cov_z, D = get_gpqc(T, X, p_t, D, sigma2, kernel)
+    M, u, Cov_z, D = get_gpqc(T, X, p_t, D, sigma2, kernel, rescale_kernel)
     chi2_bound = chi2(df=D).ppf(1 - alpha)
     
     z = cp.Variable(D)
@@ -137,11 +138,14 @@ def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_co
         ]
     return constraints
 
-def get_gpqc(T, X, p_t, D, sigma2, kernel):
+def get_gpqc(T, X, p_t, D, sigma2, kernel, rescale_kernel):
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
     TX /= TX.std(axis=0)[None, :]
     K = kernel(TX, TX)
+    if rescale_kernel:
+        K /= p_t[None, :] 
+        K /= p_t[:, None] 
     S, V = eigh(K, subset_by_index=[n - D, n-1])
     S, V = cutoff_neg_eigvals(S, V)
     
@@ -156,7 +160,7 @@ def cutoff_neg_eigvals(S, V):
     S = S[S > 1e-6]
     return S, V
 
-def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
+def get_quantile_constraint(w, Y, pi, T, X, p_t, Gamma):
     USE_KERNEL = False
     n = T.shape[0]
     TX = np.concatenate([T[:, None], X], axis=1)
@@ -164,7 +168,7 @@ def get_quantile_constraint(w, Y, pi, T, X, p_t, lambd):
     if USE_KERNEL:
         kernel = fit_gp_kernel(Y, T, X)
         TX = KernelPCA(30, kernel='rbf').fit_transform(TX)
-    Q = QuantileRegressor(quantile=1. / (lambd + 1), alpha=0.).fit(TX, Y).predict(TX) # any regressor will do, 
+    Q = QuantileRegressor(quantile=1. / (Gamma + 1), alpha=0.).fit(TX, Y).predict(TX) # any regressor will do, 
     ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     return [cp.scalar_product(pi * Q, w) == np.sum(pi * Q / p_t)]
 
@@ -180,18 +184,18 @@ def get_regressor_constraint(w, Y, pi, T, X, p_t):
     ### Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     return [cp.scalar_product(pi * Y_reg, w) == np.sum(pi * Y_reg / p_t)]
 
-def get_tan_box_constraint(w, p_t, p_t_original, lambd):
+def get_tan_box_constraint(w, p_t, p_t_original, Gamma):
     # p_t does not always satisfy p_t < 1, therefore, we use p_t_original
     # to construct box constraint for w_original and rescale it for w.
-    a_original = 1 + 1 / lambd * (1 / p_t_original - 1)
-    b_original = 1 + lambd * (1 / p_t_original - 1)
+    a_original = 1 + 1 / Gamma * (1 / p_t_original - 1)
+    b_original = 1 + Gamma * (1 / p_t_original - 1)
     a = a_original * p_t_original / p_t
     b = b_original * p_t_original / p_t
     return [a <= w, w <= b]
 
-def get_likelihood_ratio_box_constraint(w, p_t, lambd):
-    a = 1 / (lambd * p_t)
-    b = lambd / p_t
+def get_likelihood_ratio_box_constraint(w, p_t, Gamma):
+    a = 1 / (Gamma * p_t)
+    b = Gamma / p_t
     return [a <= w, w <= b]
 
 def get_f_constraint(w, p_t, gamma, f):
