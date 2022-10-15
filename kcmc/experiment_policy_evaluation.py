@@ -32,7 +32,7 @@ def run_policy_evaluation_experiment(
     assert set(params.keys()) == set(EXAMPLE_PARAMS.keys())
     for seed in range(seed0, seed0 + n_seeds):
         Y, T, X, p_t = get_data(data_type, sample_size, seed)
-        lower_bound = confounding_robust_estimator(Y, T, X, p_t, policy, **params).data.numpy()
+        # lower_bound = confounding_robust_estimator(Y, T, X, p_t, policy, **params).data.numpy()
         try:
             lower_bound = confounding_robust_estimator(Y, T, X, p_t, policy, **params).data.numpy()
             upper_bound = -confounding_robust_estimator(-Y, T, X, p_t, policy, **params).data.numpy()
