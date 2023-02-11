@@ -11,7 +11,7 @@ __pycache__/
 tags
 
 # logs
-notebooks/logs/
+*logs/
 
 
 # Distribution / packaging
