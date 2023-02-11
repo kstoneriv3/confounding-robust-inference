@@ -8,4 +8,7 @@ setup(name='kcmc',
       author_email='k.stoneriv@gmail.com',
       license='MIT',
       packages=['kcmc'],
+      install_requires=[
+          "cvxpy", "numpy", "pandas", "scikit-learn", "scipy", "statsmodels", "torch", "tqdm"
+      ],
       zip_safe=False)
