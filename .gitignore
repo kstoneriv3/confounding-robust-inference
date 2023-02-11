@@ -6,6 +6,14 @@ __pycache__/
 # C extensions
 *.so
 
+# vim
+*.swp
+tags
+
+# logs
+notebooks/logs/
+
+
 # Distribution / packaging
 .Python
 build/

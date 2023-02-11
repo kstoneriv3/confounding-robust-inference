@@ -204,7 +204,8 @@ def get_f_constraint(w, p_t, gamma, f):
     f = {
         'KL': lambda u: - cp.entr(u),
         'inverse KL': lambda u: - cp.log(u),
-        'Jensen-Shannon': lambda u: - 0.5 * (cp.entr(u) + cp.log(u)),
+        #'Jensen-Shannon': lambda u: -(u + 1) * cp.log(u + 1) + (u + 1) * np.log(2.) + u * cp.log(u), 
+        'Jensen-Shannon': lambda u: cp.entr(u + 1) + (u + 1) * np.log(2.) - cp.entr(u),
         'squared Hellinger': lambda u: u - 2 * cp.sqrt(u) + 1,
         'Pearson chi squared': lambda u: cp.square(u) - 1,
         'Neyman chi squared': lambda u: cp.inv_pos(u) - 1,
