@@ -2,7 +2,7 @@ import warnings
 
 import numpy as np
 from scipy.linalg import eigh
-from scipy.stats import chi2
+from scipy.stats import chi2, norm
 
 import cvxpy as cp
 from sklearn.decomposition import KernelPCA
@@ -14,7 +14,7 @@ from kcmc.fast_quantile_regressor import QuantileRegressor
 import torch
 
 
-f_divergences = [
+F_DIVERGENCES = [
     'KL', 'inverse KL', 'Jensen-Shannon', 'squared Hellinger',
     'Pearson chi squared', 'Neyman chi squared', 'total variation'
 ]
@@ -54,6 +54,7 @@ def confounding_robust_estimator(
     lr_box_const=False,
     f_const=False,
     return_w=False,
+    return_asypmtotics=False,
 ):
     n = T.shape[0]
     pi = policy(X, T) 
@@ -83,7 +84,7 @@ def confounding_robust_estimator(
         if lr_box_const:
             constraints.extend(get_likelihood_ratio_box_constraint(w, p_t, Gamma))
         if f_const:
-            assert f_divergence in f_divergences, f"Supported f-divergences are {f_divergences}."
+            assert f_divergence in F_DIVERGENCES, f"Supported f-divergences are {F_DIVERGENCES}."
             constraints.extend(get_f_constraint(w, p_t, gamma, f_divergence))
         objective = cp.Minimize(cp.sum(r_np * w))
         problem = cp.Problem(objective, constraints)
@@ -100,7 +101,41 @@ def confounding_robust_estimator(
 
     w = w.value
     est = torch.mean(torch.as_tensor(w) * r)
-    return (est, w) if return_w else est
+    if not return_asypmtotics:
+        return (est, w) if return_w else est
+    else:
+        n = T.shape[0]
+        TX = np.concatenate([T[:, None], X], axis=1)
+        TX /= TX.std(axis=0)[None, :]
+        K = kernel(TX, TX)
+        if rescale_kernel:
+            K /= p_t[None, :] 
+            K /= p_t[:, None] 
+        S, V = eigh(K, subset_by_index=[n - D, n-1])
+        S, V = cutoff_neg_eigvals(S, V)
+        
+        Psi = V @ np.diag(S / (S + sigma2))
+        eta_kcmc = - constraints[1].dual_value
+
+        a_original = 1 + 1 / Gamma * (1 / p_t_original - 1)
+        b_original = 1 + Gamma * (1 / p_t_original - 1)
+        a = a_original * p_t_original / p_t
+        b = b_original * p_t_original / p_t
+
+        # maybe demean Y as well
+        kernel = WhiteKernel() + ConstantKernel() * RBF()
+        model = GaussianProcessRegressor(kernel=kernel).fit(TX[:1000], Y[:1000])
+        y_mean, y_std = model.predict(TX, return_std=True)
+        r_mean, r_std = map(lambda x: x * pi_np / p_t, [y_mean, y_std])
+        conditional_pdf = norm.pdf(Psi @ eta_kcmc, loc=r_mean, scale=r_std)
+
+        grad = Psi.T @ np.where(Psi @ eta_kcmc < Y_np * pi_np / p_t, 1 - p_t * a, 1 - p_t * b)
+
+        V_diag = np.diag(np.where(Psi @ eta_kcmc < Y_np * pi_np / p_t, (a * p_t - 1) ** 2, (b * p_t - 1) ** 2))
+        V = Psi.T @ V_diag @ Psi / n  # bad variable name duplication here
+        J_diag = np.diag(p_t * (b - a) * conditional_pdf)
+        J = Psi.T @ J_diag @ Psi / n
+        return est, w, V, J, y_mean, r_mean, r_std, Psi, eta_kcmc, conditional_pdf, grad, problem
 
 def get_normalized_p_t(p_t, T):
     p_t_new = np.empty_like(p_t)
