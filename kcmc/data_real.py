@@ -1,12 +1,27 @@
 import numpy as np
 import pandas as pd
 import torch
+
 from .data_binary import estimate_p_t
+
 
 def generate_data():
     df = pd.read_csv("union1978.csv")
-    df.columns = ("id", "age", "black", "educ76", "smsa", "south", "married", "enrolled",
-                     "educ78", "manufacturing", "occupation", "union", "wage")
+    df.columns = (
+        "id",
+        "age",
+        "black",
+        "educ76",
+        "smsa",
+        "south",
+        "married",
+        "enrolled",
+        "educ78",
+        "manufacturing",
+        "occupation",
+        "union",
+        "wage",
+    )
 
     df.age = df.age + 12  # age was recorded in 1966
     df["education"] = np.maximum(df.educ76, df.educ78)
@@ -22,12 +37,12 @@ def generate_data():
             return 1  # laborer
         else:
             return 2  # other
-        
+
     df.occupation = df.occupation.apply(get_occupation_id)
 
     df = df[df.occupation != 2]
     df = df[df.enrolled == 0]
-    df = df.drop(columns=['id', 'educ76', 'educ78', 'enrolled'])
+    df = df.drop(columns=["id", "educ76", "educ78", "enrolled"])
 
     # remove missing values
     missing = np.logical_or(df.to_numpy() == -4, df.to_numpy() == -5)
@@ -38,7 +53,6 @@ def generate_data():
     Y = np.log(df.wage.to_numpy())
     Y = torch.as_tensor(Y).float()
     T = df.union.to_numpy()
-    X = df.drop(columns=['wage', 'union']).to_numpy().astype(float)
+    X = df.drop(columns=["wage", "union"]).to_numpy().astype(float)
 
     return Y, T, X
-
