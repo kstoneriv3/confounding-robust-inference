@@ -32,6 +32,7 @@ example = [
     "matplotlib",
 ]
 dev = [
+    "tox",
     "isort",
     "black[jupyter]",
     "ruff",
@@ -78,11 +79,3 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.coverage.run]
-source = ["cri"]
-
-[tool.coverage.report]
-skip_covered = true
-show_missing = true
-
