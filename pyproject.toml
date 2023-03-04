@@ -2,8 +2,8 @@
 requires = ["setuptools >= 61.1.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["cri"]
+[tool.setuptools.packages.find]
+include = ["cri*"]
 
 [project]
 name = "CRI"
@@ -49,16 +49,16 @@ dev = [
 version = {attr = "cri.version.__version__"}
 
 [tool.black]
-line-length = 120
+line-length = 100
 target-version = ["py310"]
 src_paths = ["cri", "tests", "examples"]
  
 [tool.isort]
 profile = "black"
-line_length = 120
+line_length = 100
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 exclude = ["docs"]
 
 [tool.mypy]

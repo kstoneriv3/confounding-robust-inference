@@ -5,3 +5,6 @@ API Reference
    :maxdepth: 2
 
    data
+   estimators
+   utils
+

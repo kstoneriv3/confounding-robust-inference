@@ -1,125 +1,367 @@
-from collections import namedtuple
-from typing import Callable
+from typing import NamedTuple
 
-import numpy as np
 import torch
-from sklearn.linear_model import LogisticRegressionCV
+from scipy.stats import norm
 
-PolicyType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-DataType = namedtuple("DataType", ["Y", "T", "X", "U", "e_x", "e_xu"])
-
-### Synthetic Data from Kallus and Zhou 2018, 2021
-# This is used to test that the true policy value is included when valid uncertainty set is given
-
-beta0 = 2.5
-beta0_t = -2
-beta_x = np.asarray([0, 0.5, -0.5, 0, 0])
-beta_x_t = np.asarray([-1.5, 1, -1.5, 1.0, 0.5])
-beta_xi = 1
-beta_xi_t = -2
-beta_e_x = np.asarray([0, 0.75, -0.5, 0, -1])
-mu_x = np.asarray([-1, 0.5, -1, 0, -1])
+from cri.policies import BasePolicy
+from cri.utils.propensity import estimate_p_t_binary
 
 
-def generate_data(n: int) -> DataType:
-    """Generate data.
-
-    Args:
-        n: Size of data
-
-    Returns:
-        Data
-
-    Example:
-        .. doctest::
-
-            >>> print("doctest")
-            doctest
-    """
-    xi = (np.random.rand(n) > 0.5).astype(int)
-    X = mu_x[None, :] + np.random.randn(n * 5).reshape(n, 5)
-    eps = [np.random.randn(n) for t in (0, 1)]
-    Y = np.array(
-        [X @ (beta_x + beta_x_t * t) + (beta_xi + beta_xi_t * t) * xi + (beta0 + beta0_t * t) + eps[t] for t in (0, 1)]
-    )
-    U = (Y[0, :] > Y[1, :]).astype(int)
-    z = X @ beta_e_x
-    e_x = np.exp(z) / (1 + np.exp(z))
-    e_xu = (6 * e_x) / (4 + 5 * U + e_x * (2 - 5 * U))
-    T = (np.random.rand(n) < e_xu).astype(int)
-    Y = Y[T, range(n)]
-    e_x = e_x * T + (1 - e_x) * (1 - T)
-    e_xu = e_xu * T + (1 - e_xu) * (1 - T)
-    return DataType(Y, T, X, U, e_x, e_xu)
+class DataTuple(NamedTuple):
+    Y: torch.Tensor
+    T: torch.Tensor
+    X: torch.Tensor
+    U: torch.Tensor | None
+    p_t_x: torch.Tensor
+    p_t_xu: torch.Tensor | None
 
 
-def evaluate_policy(policy: PolicyType, n: int = 1000) -> torch.Tensor:
-    xi = (np.random.rand(n) > 0.5).astype(int)
-    X = mu_x[None, :] + np.random.randn(n * 5).reshape(n, 5)
-    eps = [np.random.randn(n) for t in (0, 1)]
-    Y = torch.as_tensor(
-        np.array(
-            [
-                X @ (beta_x + beta_x_t * t) + (beta_xi + beta_xi_t * t) * xi + (beta0 + beta0_t * t) + eps[t]
-                for t in (0, 1)
-            ]
-        )
-    )
-    pi = policy(X, torch.zeros(n))
-    Y = Y[0] * pi + Y[1] * (1 - pi)
-    return Y.mean()
-
-
-def estimate_p_t(X: np.ndarray, T: np.ndarray) -> np.ndarray:
-    model = LogisticRegressionCV().fit(X, T)
-    p_t = model.predict_proba(X)[range(T.shape[0]), T]
-    return p_t
-
-
-### Synthetic Data for testing the tightness of the bounds
 class BaseData:
     """Base class for data used in the numerical experiments."""
 
-    def __init__(self) -> None:
-        raise NotImplementedError
-
-    def sample(self, n: int) -> DataType:
-        raise NotImplementedError
-        # return Y, T, X, p_t
-
-    @property
-    def default_policy(self) -> PolicyType:
-        raise NotImplementedError
-
-    def evaluate_policy(self, policy: PolicyType | None = None) -> torch.Tensor:
-        raise NotImplementedError
-        if policy:
-            # logger.warn("Monte Carlo Sampling")
-            pass
-        else:
-            # return true policy value of self.default_policy
-            pass
-
-    def ground_truth_box_bounds(self, Gamma: float, policy: PolicyType | None = None) -> torch.Tensor:
-        raise NotImplementedError
-        if policy:
-            raise NotImplementedError
-        else:
-            pass
-            # return true policy value of self.default_policy
-        # return
-
-
-class ContinuousSyntheticData(BaseData):
-    def sample(self, n: int) -> DataType:
-        """sampling data
+    def sample(self, n: int) -> DataTuple:
+        """Generate data.
 
         Args:
             n: Size of data
 
         Returns:
-            Data
+            Namedtuple that contains the generated data, whose attributes are
+            Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.
         """
-        return DataType(*[None for _ in range(6)])
+        raise NotImplementedError
 
-    pass
+    def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
+        """Unbiased Monte Carlo estimator of policy value.
+
+        Args:
+            policy: Policy to be evaluated.
+            n_mc: The number of Monte Carlo samples.
+
+        Returns:
+            Policy value estimator, which is a torch tensor differentiable w.r.t. policy.
+        """
+        raise NotImplementedError
+
+    def evaluate_true_lower_bound(
+        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    ) -> torch.Tensor:
+        """Ground truth lower bound under box constraints.
+
+        Unbiased Monte Carlo estimation is used to estimate the lower bound.
+
+        Args:
+            Gamma: Parameteer of box constraints.
+            policy: Policy to be evaluated.
+            n_mc: The number of Monte Carlo samples.
+
+        Returns:
+            Lower bound estimate, which is a torch tensor differentiable w.r.t. policy.
+        """
+        raise NotImplementedError
+
+
+class SyntheticDataKallusZhou2018(BaseData):
+    """Synthetic data from Kallus and Zhou 2018.
+
+    For this synthetic data, we know that the Tan's box constraints with p_obs(t|x) = p_t_x and
+    Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic
+    data can be is used to test if the true policy value is actually included when a valid
+    uncertainty set is given.
+    """
+
+    def __init__(self) -> None:
+        # We define constants in __init__ to avoid issues around different torch dtype.
+        self.beta0 = 2.5
+        self.beta0_t = -2
+        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_xi = 1
+        self.beta_xi_t = -2
+        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+
+    def sample(self, n: int) -> DataTuple:
+        xi = (torch.rand(n) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
+        eps = [torch.randn(n) for t in (0, 1)]
+        Y_po = torch.Tensor(size=(n, 2))  # potential outcome
+        for t in (0, 1):
+            Y_po[:, t] = (
+                X @ (self.beta_x + self.beta_x_t * t)
+                + xi * (self.beta_xi + self.beta_xi_t * t)
+                + (self.beta0 + self.beta0_t * t)
+                + eps[t]
+            )
+        U = (Y_po[:, 0] > Y_po[:, 1]).int()
+        z = X @ self.beta_p_t
+        p_t_x = torch.exp(z) / (1 + torch.exp(z))
+        p_t_xu = (6 * p_t_x) / (4 + 5 * U + p_t_x * (2 - 5 * U))
+        T = (torch.rand(n) < p_t_xu).int()
+        Y = (1 - T) * Y_po[:, 0] + T * Y_po[T, 1]
+        p_t_x = (1 - p_t_x) * (1 - T) + p_t_x * T
+        p_t_xu = (1 - p_t_xu) * (1 - T) + p_t_xu * T
+        return DataTuple(Y, T, X, U, p_t_x, p_t_xu)
+
+    def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
+        xi = (torch.rand(n_mc) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
+        eps = [torch.randn(n_mc) for t in (0, 1)]
+        Y_po = torch.Tensor(size=(n_mc, 2))
+        for t in (0, 1):
+            Y_po[:, t] = (
+                X @ (self.beta_x + self.beta_x_t * t)
+                + xi * (self.beta_xi + self.beta_xi_t * t)
+                + (self.beta0 + self.beta0_t * t)
+                + eps[t]
+            )
+        # We avoid sampling w.r.t. policy for its differentiatiability.
+        pi = policy.prob(torch.zeros(n_mc), X)
+        Y = Y_po[:, 0] * pi + Y_po[:, 1] * (1 - pi)
+        return Y.mean()
+
+
+class SyntheticDataKallusZhou2018Continuous(BaseData):
+    """Synthetic data with continuous action space similar to Kallus and Zhou 2018.
+
+    For this synthetic data, we know that the Tan's box constraints with p_obs(t|x) = p_t_x and
+    Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic
+    data can be is used to test if the true policy value is actually included when a valid
+    uncertainty set is given.
+    """
+
+    def __init__(self) -> None:
+        # We define constants in __init__ to avoid issues around different torch dtype.
+        self.beta0 = 2.5
+        self.beta0_t = -2
+        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_xi = 1
+        self.beta_xi_t = -2
+        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+
+    def sample(self, n: int) -> DataTuple:
+        xi = (torch.rand(n) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
+        eps = [torch.randn(n) for t in (0, 1)]
+        Y_po = torch.Tensor(size=(n, 2))
+        for t in (0, 1):
+            Y_po[:, t] = (
+                X @ (self.beta_x + self.beta_x_t * t)
+                + xi * (self.beta_xi + self.beta_xi_t * t)
+                + (self.beta0 + self.beta0_t * t)
+                + eps[t]
+            )
+        U = (Y_po[:, 0] > Y_po[:, 1]).int()
+        Unif = torch.rand(n)
+        T = torch.where(torch.rand(n) < 2 / 3, Unif, U * Unif**2 + (1 - U) * (1 - Unif) ** 2)
+        Y = (1 - T) * Y_po[:, 0] + T * Y_po[:, 1]
+        p_t_x = torch.ones(n)
+        p_t_xu = (2 / 3) * (1 + U * Unif + (1 - U) * (1 - Unif))
+        return DataTuple(Y, T, X, U, p_t_x, p_t_xu)
+
+    def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
+        xi = (torch.rand(n_mc) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
+        eps = [torch.randn(n_mc) for t in (0, 1)]
+        T = policy.sample(X)
+        Y_po = torch.Tensor(size=(n_mc, 2))
+        for t in (0, 1):
+            Y_po[:, t] = (
+                X @ (self.beta_x + self.beta_x_t * t)
+                + xi * (self.beta_xi + self.beta_xi_t * t)
+                + (self.beta0 + self.beta0_t * t)
+                + eps[t]
+            )
+        Y = (1 - T) * Y_po[:, 0] + T * Y_po[:, 1]
+        return Y.mean()
+
+
+class SyntheticDataBinary(BaseData):
+    """Synthetic data with witn binary action space and a known lower bound.
+
+    This is synthetic data with binary action space, similar to Kallus and Zhou 2018.
+    For this data, we know that analytic expression of the lower bound of Tan's marginal sensitivity
+    model. Thus, this synthetic data can be is used to test the consistency and asypmtotic property
+    of estimators.
+    """
+
+    def __init__(self) -> None:
+        # We define constants in __init__ to avoid issues around different torch dtype.
+        self.beta0 = 2.5
+        self.beta0_t = -2
+        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_xi = 1
+        self.beta_xi_t = -2
+        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+
+    def sample(self, n: int) -> DataTuple:
+        xi = (torch.rand(n) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
+        z = X @ self.beta_p_t
+        p_t_x = torch.exp(z) / (1 + torch.exp(z))
+        T = (torch.randn(n) < p_t_x).int()
+        Y = (
+            X @ self.beta_x
+            + X @ self.beta_x_t * T
+            + xi * self.beta_xi
+            + xi * self.beta_xi * T
+            + self.beta0
+            + self.beta0_t * T
+            + torch.randn(n)
+        )
+        return DataTuple(Y, T, X, None, p_t_x, None)
+
+    def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
+        xi = (torch.rand(n_mc) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
+        Y_po = torch.Tensor(size=(n_mc, 2))
+        for t in (0, 1):
+            Y_po[:, t] = (
+                X @ self.beta_x
+                + X @ self.beta_x_t * t
+                + xi * self.beta_xi
+                + xi * self.beta_xi * t
+                + self.beta0
+                + self.beta0_t * t
+                + torch.randn(n_mc)
+            )
+        # We avoid sampling w.r.t. policy for its differentiatiability.
+        pi = policy.prob(torch.zeros(n_mc), X)
+        Y = Y_po[:, 0] * pi + Y_po[:, 1] * (1 - pi)
+        return Y.mean()
+
+    def evaluate_true_lower_bound(
+        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    ) -> torch.Tensor:
+        tau = 1 / (1 + Gamma)
+        return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
+
+
+class SyntheticDataContinuous(BaseData):
+    """Synthetic data with with continuous action space and a known lower bound.
+
+    This is synthetic data with continuous action space, similar to Kallus and Zhou 2018.
+    For this data, we know that analytic expression of the lower bound of Tan's marginal sensitivity
+    model. Thus, this synthetic data can be is used to test the consistency and asypmtotic property
+    of estimators.
+    """
+
+    def __init__(self) -> None:
+        # We define constants in __init__ to avoid issues around different torch dtype.
+        self.beta0 = 2.5
+        self.beta0_t = -2
+        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_xi = 1
+        self.beta_xi_t = -2
+        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+
+    def sample(self, n: int) -> DataTuple:
+        xi = (torch.rand(n) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
+        dist = torch.distributions.Normal(X @ self.beta_p_t, 1.0)  # type: ignore
+        T = dist.sample()  # type: ignore
+        p_t_x = dist.log_prob(T).exp()  # type: ignore
+        Y = (
+            X @ self.beta_x
+            + X @ self.beta_x_t * T
+            + xi * self.beta_xi
+            + xi * self.beta_xi * T
+            + self.beta0
+            + self.beta0_t * T
+            + torch.randn(n)
+        )
+        return DataTuple(Y, T, X, None, p_t_x, None)
+
+    def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
+        xi = (torch.rand(n_mc) > 0.5).int()
+        X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
+        T = policy.sample(X)
+        Y = (
+            X @ self.beta_x
+            + X @ self.beta_x_t * T
+            + xi * self.beta_xi
+            + xi * self.beta_xi * T
+            + self.beta0
+            + self.beta0_t * T
+            + torch.randn(n_mc)
+        )
+        return Y.mean()
+
+    def evaluate_true_lower_bound(
+        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    ) -> torch.Tensor:
+        tau = 1 / (1 + Gamma)
+        return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
+
+
+class Data:
+    """Base class for data used in the numerical experiments."""
+
+    def __init__(self) -> None:
+        self.data: DataTuple | None = None
+
+    def sample(self, n: int) -> DataTuple:
+        
+        if self.data is None:
+            self.data = self.prepare_data()
+        return self.data
+
+    def prepare_data(self) -> DataTuple:
+        df = pd.read_csv("union1978.csv")
+        df.columns = (
+            "id",
+            "age",
+            "black",
+            "educ76",
+            "smsa",
+            "south",
+            "married",
+            "enrolled",
+            "educ78",
+            "manufacturing",
+            "occupation",
+            "union",
+            "wage",
+        )
+
+        df.age = df.age + 12  # age was recorded in 1966
+        df["education"] = np.maximum(df.educ76, df.educ78)
+        df.black = (df.black == 2).astype(int)
+        df.married = np.logical_or(df.married == 1, df.married == 2).astype(int)
+        df.smsa = np.logical_or(df.smsa == 1, df.smsa == 2).astype(int)
+        df.manufacturing = np.logical_and(206 <= df.manufacturing, df.manufacturing <= 459).astype(int)
+
+        def get_occupation_id(occ_number):
+            if 401 <= occ_number <= 545:
+                return 0  # craftsman
+            elif 960 <= occ_number <= 985:
+                return 1  # laborer
+            else:
+                return 2  # other
+
+        df.occupation = df.occupation.apply(get_occupation_id)
+
+        df = df[df.occupation != 2]
+        df = df[df.enrolled == 0]
+        df = df.drop(columns=["id", "educ76", "educ78", "enrolled"])
+
+        # remove missing values
+        missing = np.logical_or(df.to_numpy() == -4, df.to_numpy() == -5)
+        df = df[~missing.any(axis=1)]
+
+        # df.describe()
+
+        Y = np.log(df.wage.to_numpy())
+        Y = torch.as_tensor(Y).float()
+        T = df.union.to_numpy()
+        X = df.drop(columns=["wage", "union"]).to_numpy().astype(float)
+        p_t_x = estimate_p_t_binary(X, T)
+
+        return DataTuple(Y, T, X, None, p_t_x, None)
+
