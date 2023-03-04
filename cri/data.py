@@ -1,3 +1,4 @@
+from importlib import resources
 from typing import NamedTuple
 
 import numpy as np
@@ -7,6 +8,7 @@ from scipy.stats import norm
 
 from cri.policies import BasePolicy
 from cri.utils.propensity import estimate_p_t_binary
+from cri.utils.types import as_tensors
 
 
 class DataTuple(NamedTuple):
@@ -45,8 +47,8 @@ class BaseData:
         """
         raise NotImplementedError
 
-    def evaluate_true_lower_bound(
-        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    def evaluate_policy_lower_bound(
+        self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
         """Ground truth lower bound under box constraints.
 
@@ -100,7 +102,7 @@ class SyntheticDataKallusZhou2018(BaseData):
         p_t_x = torch.exp(z) / (1 + torch.exp(z))
         p_t_xu = (6 * p_t_x) / (4 + 5 * U + p_t_x * (2 - 5 * U))
         T = (torch.rand(n) < p_t_xu).int()
-        Y = (1 - T) * Y_po[:, 0] + T * Y_po[T, 1]
+        Y = (1 - T) * Y_po[:, 0] + T * Y_po[:, 1]
         p_t_x = (1 - p_t_x) * (1 - T) + p_t_x * T
         p_t_xu = (1 - p_t_xu) * (1 - T) + p_t_xu * T
         return DataTuple(Y, T, X, U, p_t_x, p_t_xu)
@@ -236,8 +238,8 @@ class SyntheticDataBinary(BaseData):
         Y = Y_po[:, 0] * pi + Y_po[:, 1] * (1 - pi)
         return Y.mean()
 
-    def evaluate_true_lower_bound(
-        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    def evaluate_policy_lower_bound(
+        self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
         tau = 1 / (1 + Gamma)
         return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
@@ -295,8 +297,8 @@ class SyntheticDataContinuous(BaseData):
         )
         return Y.mean()
 
-    def evaluate_true_lower_bound(
-        self, Gamma: float, policy: BasePolicy, n_mc: int = 1000
+    def evaluate_policy_lower_bound(
+        self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
         tau = 1 / (1 + Gamma)
         return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
@@ -308,13 +310,19 @@ class NLSDataDornGuo2022:
     def __init__(self) -> None:
         self.data: DataTuple | None = None
 
-    def sample(self, n: int) -> DataTuple:
+    def sample(self, n: int = 667) -> DataTuple:
+        if n != 667:
+            raise ValueError(
+                f"n = {n} is given as the input but there are n = 667 data points in this dataset."
+            )
         if self.data is None:
             self.data = self.load_and_prepare_data()
-        return self.data
+        return self.data[:n]
 
     def load_and_prepare_data(self) -> DataTuple:
-        df = pd.read_csv("./union1978.csv")
+        import cri
+        path = resources.files(cri).joinpath("union1978.csv")
+        df = pd.read_csv(path)
         df.columns = (
             "id",
             "age",
@@ -364,6 +372,8 @@ class NLSDataDornGuo2022:
         Y = torch.as_tensor(Y).float()
         T = df.union.to_numpy()
         X = df.drop(columns=["wage", "union"]).to_numpy().astype(float)
+
+        Y, T, X = as_tensors(Y, T, X)
         p_t_x = estimate_p_t_binary(X, T)
 
         return DataTuple(Y, T, X, None, p_t_x, None)

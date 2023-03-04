@@ -2,7 +2,7 @@
 all: format test docs clean
 
 test:
-	pytest --cov --cov-append
+	pytest --cov cri --cov-append
 
 format:
 	isort cri examples tests
@@ -11,7 +11,8 @@ format:
 	mypy cri examples tests
 
 docs:
-	cd docs;make clean doctest html
+	cd docs
+	make clean doctest html
 	cd ..
 
 clean:
