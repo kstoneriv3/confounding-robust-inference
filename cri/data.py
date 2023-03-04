@@ -1,5 +1,7 @@
 from typing import NamedTuple
 
+import numpy as np
+import pandas as pd
 import torch
 from scipy.stats import norm
 
@@ -300,20 +302,19 @@ class SyntheticDataContinuous(BaseData):
         return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
 
 
-class Data:
-    """Base class for data used in the numerical experiments."""
+class NLSDataDornGuo2022:
+    """NLS data from Dorn and Guo 2022."""
 
     def __init__(self) -> None:
         self.data: DataTuple | None = None
 
     def sample(self, n: int) -> DataTuple:
-        
         if self.data is None:
-            self.data = self.prepare_data()
+            self.data = self.load_and_prepare_data()
         return self.data
 
-    def prepare_data(self) -> DataTuple:
-        df = pd.read_csv("union1978.csv")
+    def load_and_prepare_data(self) -> DataTuple:
+        df = pd.read_csv("./union1978.csv")
         df.columns = (
             "id",
             "age",
@@ -335,9 +336,11 @@ class Data:
         df.black = (df.black == 2).astype(int)
         df.married = np.logical_or(df.married == 1, df.married == 2).astype(int)
         df.smsa = np.logical_or(df.smsa == 1, df.smsa == 2).astype(int)
-        df.manufacturing = np.logical_and(206 <= df.manufacturing, df.manufacturing <= 459).astype(int)
+        df.manufacturing = np.logical_and(206 <= df.manufacturing, df.manufacturing <= 459).astype(
+            int
+        )
 
-        def get_occupation_id(occ_number):
+        def get_occupation_id(occ_number: int) -> int:
             if 401 <= occ_number <= 545:
                 return 0  # craftsman
             elif 960 <= occ_number <= 985:
@@ -364,4 +367,3 @@ class Data:
         p_t_x = estimate_p_t_binary(X, T)
 
         return DataTuple(Y, T, X, None, p_t_x, None)
-
