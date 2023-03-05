@@ -13,7 +13,7 @@ from cri.estimators.constraints import (
     get_qb_constraint,
     get_zsb_box_constraints,
 )
-from cri.estimators.misc import assert_input, normalize_p_t, select_kernel
+from cri.estimators.misc import assert_input, get_orthogonal_basis, normalize_p_t, select_kernel
 from cri.policies import BasePolicy
 from cri.utils.types import as_ndarrays
 
@@ -183,6 +183,7 @@ class QBEstimator(BaseEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
+        self.Psi_np = get_orthogonal_basis(T_np, X_np, self.D, self.kernel)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -196,7 +197,7 @@ class QBEstimator(BaseEstimator):
             constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
             constraints.extend(
                 get_qb_constraint(
-                    w, Y_np, T_np, X_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
+                    w, Y_np, self.Psi_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
                 )
             )
 

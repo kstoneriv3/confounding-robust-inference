@@ -1,7 +1,52 @@
+from typing import Callable
+
+import cvxpy as cp
 import numpy as np
 import torch
+from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
+from sklearn.preprocessing import StandardScaler
+
+
+F_DIVERGENCES = [
+    "KL",
+    "inverse_KL",
+    "Jensen_Shannon",
+    "squared_Hellinger",
+    "Pearson_chi_squared",
+    "Neyman_chi_squared",
+    "total_variation",
+]
+
+CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
+    "KL": lambda u: -cp.entr(u),
+    "inverse_KL": lambda u: -cp.log(u),
+    #'Jensen_Shannon': lambda u: -(u + 1) * cp.log(u + 1) + (u + 1) * np.log(2.) + u * cp.log(u)
+    "Jensen_Shannon": lambda u: cp.entr(u + 1) + (u + 1) * np.log(2.0) - cp.entr(u),
+    "squared_Hellinger": lambda u: u - 2 * cp.sqrt(u) + 1,
+    "Pearson_chi_squared": lambda u: cp.square(u) - 1,
+    "Neyman_chi_squared": lambda u: cp.inv_pos(u) - 1,
+    "total_variation": lambda u: 0.5 * cp.abs(u - 1),
+}
+
+
+def get_orthogonal_basis(
+    T: np.ndarray,
+    X: np.ndarray,
+    D: int,
+    kernel: Kernel,
+) -> np.ndarray:
+    """Calculate kernel PCA's (empirically) orthogonal features and intercept (constant feature).
+
+    Returns:
+        Feature matrix of shape (n, D + 1).
+    """
+    TX = np.concatenate([T[:, None], X], axis=1)
+    TX = StandardScaler().fit_transform(TX)
+    Psi = KernelPCA(D, kernel=kernel).fit_transform(TX)
+    Psi = np.concatenate([Psi, np.ones_like(Psi[:, :1])], axis=1)
+    return Psi
 
 
 def select_kernel(
@@ -11,7 +56,7 @@ def select_kernel(
 ) -> Kernel:
     """Learn the kernel parameters by fitting Gaussian process regression of Y on (T, X)."""
     TX = np.concatenate([T[:, None], X], axis=1)
-    TX /= TX.std(axis=0)[None, :]
+    TX = StandardScaler().fit_transform(TX)
     kernel = WhiteKernel() + ConstantKernel() * RBF()
     # As GP gets slower for large sample size, we truncate data by n=1000.
     model = GaussianProcessRegressor(kernel=kernel).fit(TX[:1000], Y[:1000])
