@@ -4,7 +4,7 @@ from typing import List
 import cvxpy as cp
 import numpy as np
 import torch
-from sklearn.gaussian_process.kernels import RBF, Kernel
+from sklearn.gaussian_process.kernels import Kernel
 
 from cri.estimators.base import BaseEstimator
 from cri.estimators.constraints import (
@@ -13,7 +13,7 @@ from cri.estimators.constraints import (
     get_qb_constraint,
     get_zsb_box_constraints,
 )
-from cri.estimators.misc import assert_input, normalize_p_t
+from cri.estimators.misc import assert_input, normalize_p_t, select_kernel
 from cri.policies import BasePolicy
 from cri.utils.types import as_ndarrays
 
@@ -71,11 +71,11 @@ class ZSBEstimator(BaseEstimator):
     Args:
         Gamma: Sensitivity parameter satisfying Gamma >= 1.0. When Gamma == 1.0, ZSB estimator is
             equivalent to the Hajek estimator.
-        use_fractional_programming: Default value is True so that we use linear fractional
-            programming as in Zhao, Small, and Bhattacharya (2019). If False, it do not use linear
-            fractional programming for lower bound calculation and instead normalize nominal
-            propensity p_t and uses it with more primitive approach used by marginal sensitivity
-            model (MSM) by Tan (2006).
+        use_fractional_programming: If True, linear fractional programming is used as in
+            Zhao, Small, and Bhattacharya (2019). If False, it does not use linear fractional
+            programming for lower bound calculation and instead normalize nominal propensity p_t
+            and uses takes more primitive approach used by marginal sensitivity model (MSM)
+            by Tan (2006).
     """
 
     def __init__(self, Gamma: float, use_fractional_programming: bool = True) -> None:
@@ -155,7 +155,7 @@ class QBEstimator(BaseEstimator):
         self,
         Gamma: float,
         D: int = 30,
-        kernel: Kernel = RBF(),
+        kernel: Kernel | None = None,
     ) -> None:
         assert Gamma >= 1
         self.Gamma = Gamma
@@ -178,10 +178,11 @@ class QBEstimator(BaseEstimator):
         self.policy = policy
         n = T.shape[0]
 
-        # Necessary for ensuring the feasibility for small Gamma under box and Hajek constraints.
         pi = policy.prob(X, T)
         r = Y * pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
+
+        self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():

@@ -8,4 +8,3 @@ API Reference
    estimators
    policies
    utils
-
