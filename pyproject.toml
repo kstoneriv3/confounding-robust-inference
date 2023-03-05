@@ -89,6 +89,7 @@ testpaths = ["tests"]
 [[tool.mypy.overrides]]
 module = [
     "cri.estimators.baselines",
+    "cri.estimators.constraints",
     "cri.estimators.kcmc",
     "cri.estimators.misc"
 ]
