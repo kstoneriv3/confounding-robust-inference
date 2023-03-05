@@ -12,7 +12,6 @@ format:
 
 docs:
 	cd docs;make clean doctest html
-	cd ..
 
 clean:
 	coverage erase

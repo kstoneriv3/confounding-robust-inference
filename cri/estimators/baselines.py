@@ -4,16 +4,16 @@ from typing import List
 import cvxpy as cp
 import numpy as np
 import torch
+from sklearn.gaussian_process.kernels import RBF, Kernel
 
 from cri.estimators.base import BaseEstimator
-from cri.estimators.misc import (
-    assert_input,
+from cri.estimators.constraints import (
     get_box_constraints,
     get_hajek_constraints,
     get_qb_constraint,
     get_zsb_box_constraints,
-    normalize_p_t,
 )
+from cri.estimators.misc import assert_input, normalize_p_t
 from cri.policies import BasePolicy
 from cri.utils.types import as_ndarrays
 
@@ -100,7 +100,7 @@ class ZSBEstimator(BaseEstimator):
         n = T.shape[0]
 
         # Necessary for ensuring the feasibility for small Gamma under box and Hajek constraints.
-        if self.use_fractional_programming:
+        if not self.use_fractional_programming:
             p_t = normalize_p_t(p_t, T)
         pi = policy.prob(X, T)
         r = Y * pi
@@ -148,16 +148,19 @@ class QBEstimator(BaseEstimator):
         Gamma: Sensitivity parameter satisfying Gamma >= 1.0. When Gamma == 1.0, QB estimator is
             equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
+        kernel: Kernel used in the low-rank kernel quantile regression.
     """
 
     def __init__(
         self,
         Gamma: float,
         D: int = 30,
+        kernel: Kernel = RBF(),
     ) -> None:
         assert Gamma >= 1
         self.Gamma = Gamma
         self.D = D
+        self.kernel = kernel
 
     def fit(
         self,
@@ -191,7 +194,9 @@ class QBEstimator(BaseEstimator):
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
             constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
             constraints.extend(
-                get_qb_constraint(w, Y_np, T_np, X_np, p_t_np, pi_np, self.Gamma, self.D)
+                get_qb_constraint(
+                    w, Y_np, T_np, X_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
+                )
             )
 
             problem = cp.Problem(objective, constraints)
