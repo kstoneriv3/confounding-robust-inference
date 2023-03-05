@@ -11,8 +11,7 @@ format:
 	mypy cri examples tests
 
 docs:
-	cd docs
-	make clean doctest html
+	cd docs;make clean doctest html
 	cd ..
 
 clean:

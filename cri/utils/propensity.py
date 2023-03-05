@@ -12,8 +12,9 @@ from statsmodels.othermod.betareg import BetaModel
 from cri.utils.types import as_ndarrays, as_tensors
 
 
-def estimate_p_t_binary(X: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+def estimate_p_t_binary(T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     """Estimate nominal propensity p_obs(t|x) from data when T = 0 or 1."""
+    assert len(T.shape) == 1 and len(X.shape) == 2
     X_np, T_np = as_ndarrays(X, T)
     model = LogisticRegressionCV().fit(X_np, T_np)
     p_t_np = model.predict_proba(X_np)[range(T.shape[0]), T_np]
@@ -21,8 +22,9 @@ def estimate_p_t_binary(X: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     return p_t
 
 
-def estimate_p_t_bounded_continuous(X: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+def estimate_p_t_bounded_continuous(T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     """Estimate nominal propensity p_obs(t|x) from data when 0 <= T <= 1."""
+    assert len(T.shape) == 1 and len(X.shape) == 2
     X_np, T_np = as_ndarrays(X, T)
     # Z: additional non-linear feature
     Z_np = KernelPCA(n_components=2, kernel="rbf", gamma=0.01).fit_transform(X_np)
@@ -36,8 +38,9 @@ def estimate_p_t_bounded_continuous(X: torch.Tensor, T: torch.Tensor) -> torch.T
     return p_t
 
 
-def estimate_p_t_continuous(X: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+def estimate_p_t_continuous(T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     """Estimate nominal propensity p_obs(t|x) from data when T is continuous."""
+    assert len(T.shape) == 1 and len(X.shape) == 2
     X_np, T_np = as_ndarrays(X, T)
     kernel = WhiteKernel() + ConstantKernel() * RBF()
     model = GaussianProcessRegressor(kernel=kernel).fit(X_np[:1000], T_np[:1000])

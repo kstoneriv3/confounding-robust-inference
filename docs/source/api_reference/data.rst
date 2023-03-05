@@ -8,8 +8,9 @@ cri.data
     :nosignatures:
 
     cri.data.BaseData
-    cri.data.SyntheticDataKallusZhou2018
-    cri.data.SyntheticDataKallusZhou2018Continuous
     cri.data.SyntheticDataBinary
     cri.data.SyntheticDataContinuous
+    cri.data.SyntheticDataKallusZhou2018
+    cri.data.SyntheticDataKallusZhou2018Continuous
+    cri.data.NLSDataDornGuo2022
     cri.data.DataTuple

@@ -280,12 +280,6 @@ def fit_gp_kernel(Y, T, X):
     return model.kernel_
 
 
-def get_hajek_constraint(w, T, p_t):
-    n = T.shape[0]
-    constraints = []
-    for t in set(T):
-        constraints.append(cp.sum(w[T == t]) == n)
-    return constraints
 
 
 def get_kernel_constraint(w, T, X, p_t, alpha, sigma2, kernel, D, hard_kernel_const, rescale_kernel):

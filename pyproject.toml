@@ -85,3 +85,14 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[[tool.mypy.overrides]]
+module = [
+    "cri.estimators.baselines",
+    "cri.estimators.kcmc",
+    "cri.estimators.misc"
+]
+disable_error_code = [
+    "attr-defined",
+    "name-defined"
+]  # due to cvxpy not setting __all__ in __init__.py

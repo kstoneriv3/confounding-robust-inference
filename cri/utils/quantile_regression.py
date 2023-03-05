@@ -1,7 +1,7 @@
 import torch
 
 
-class FastQuantileRegressor:
+class TorchQuantileRegressor:
     """Quantile regression model that uses gradient descent.
 
     This is a quantile regression model with fit and predict methods. This is used as a faster
@@ -27,18 +27,18 @@ class FastQuantileRegressor:
         >>> tY = torch.as_tensor(Y)
         >>>
         >>> from sklearn.linear_model import QuantileRegressor
-        >>> from cri.utils.quantile_regressor import FastQuantileRegressor
+        >>> from cri.utils.quantile_regression import TorchQuantileRegressor
         >>> qr = QuantileRegressor(
         ...     quantile=0.4, alpha=0., fit_intercept=False, solver='highs'
         ... ).fit(X, Y)
-        >>> fqr = FastQuantileRegressor(quantile=0.4).fit(tX, tY)
+        >>> fqr = TorchQuantileRegressor(quantile=0.4).fit(tX, tY)
         >>> assert torch.allclose(torch.as_tensor(qr.coef_), fqr.coef_, atol=0.1)
     """
 
     def __init__(self, quantile: float) -> None:
         self.quantile = quantile
 
-    def fit(self, X: torch.Tensor, Y: torch.Tensor, n_iter: int = 200) -> "FastQuantileRegressor":
+    def fit(self, X: torch.Tensor, Y: torch.Tensor, n_iter: int = 200) -> "TorchQuantileRegressor":
         Y_scale = Y.std()
         Y = Y / Y_scale
         L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, axis=1).mean()

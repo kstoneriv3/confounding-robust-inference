@@ -8,7 +8,7 @@ cri.utils.quantile_regressor
 ----------------------------
 A faster alternative to the QuantileRegressor of scikit-learn.
 
-.. automodule:: cri.utils.quantile_regressor
+.. automodule:: cri.utils.quantile_regression
    :members:
    :undoc-members:
 

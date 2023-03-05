@@ -6,5 +6,6 @@ API Reference
 
    data
    estimators
+   policies
    utils
 
