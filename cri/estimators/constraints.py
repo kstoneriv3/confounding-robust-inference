@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import chi2
 from sklearn.gaussian_process.kernels import Kernel
 
-from cri.estimators.misc import CVXPY_F_DIV_FUNCTIONS
+from cri.estimators.misc import CVXPY_F_DIV_FUNCTIONS, get_a_b
 from cri.utils.quantile_regression import TorchQuantileRegressor
 from cri.utils.types import as_ndarrays, as_tensors
 
@@ -18,20 +18,15 @@ def get_hajek_constraints(w: cp.Variable, T: np.ndarray, p_t: np.ndarray) -> Lis
     return constraints
 
 
-def get_a_b(p_t: np.ndarray, Gamma: float) -> tuple[np.ndarray, np.ndarray]:
-    a = 1 + 1 / Gamma * (1 / p_t - 1)
-    b = 1 + Gamma * (1 / p_t - 1)
-    return a, b
-
-
 def get_zsb_box_constraints(
     w: cp.Variable,
     T: np.ndarray,
     p_t: np.ndarray,
     Gamma: float,
+    const_type: str,
 ) -> List[cp.Constraint]:
     scale = cp.Variable(1)
-    a, b = get_a_b(p_t, Gamma)
+    a, b = get_a_b(p_t, Gamma, const_type)
     return [0 <= scale, scale * a <= w, w <= scale * b]
 
 
@@ -40,8 +35,9 @@ def get_box_constraints(
     T: np.ndarray,
     p_t: np.ndarray,
     Gamma: float,
+    const_type: str,
 ) -> List[cp.Constraint]:
-    a, b = get_a_b(p_t, Gamma)
+    a, b = get_a_b(p_t, Gamma, const_type)
     return [a <= w, w <= b]
 
 

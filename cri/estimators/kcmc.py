@@ -3,9 +3,11 @@ import warnings
 import cvxpy as cp
 import numpy as np
 import torch
-from torch.autograd.functional import hessian, jacobian
-from sklearn.gaussian_process.kernels import Kernel
+from scipy.stats import norm
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler
+from torch.autograd.functional import hessian, jacobian
 
 from cri.estimators.base import BaseEstimator
 from cri.estimators.constraints import (
@@ -15,20 +17,26 @@ from cri.estimators.constraints import (
     get_gp_constraints,
     get_kernel_constraints,
 )
-from cri.estimators.misc import F_DIVERGENCES, assert_input, get_orthogonal_basis, select_kernel
+from cri.estimators.misc import (
+    F_DIVERGENCES,
+    assert_input,
+    get_f_conjugate,
+    get_orthogonal_basis,
+    select_kernel,
+)
 from cri.policies import BasePolicy
 from cri.utils.types import as_ndarrays
 
-CONSTRAINT_TYPES = F_DIVERGENCES + ["box"]
+CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
 
 
 class KCMCEstimator(BaseEstimator):
     """Kernel Conditional Moment Constraints (KCMC) Estimator.
 
     Args:
-        const_type: Type of the constraint used. It must be one of "box", "KL", "inverse_KL",
-            "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared", "Neyman_chi_squared",
-            and "total_variation".
+        const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
+            "inverse_KL", "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared",
+            "Neyman_chi_squared", and "total_variation".
         gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
             When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
@@ -46,7 +54,7 @@ class KCMCEstimator(BaseEstimator):
         kernel: Kernel | None = None,
     ) -> None:
         assert const_type in CONSTRAINT_TYPES
-        if const_type == "box":
+        if "box" in const_type:
             assert Gamma is not None and Gamma >= 1
         else:
             assert gamma is not None and gamma >= 0
@@ -90,8 +98,10 @@ class KCMCEstimator(BaseEstimator):
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             kernel_consts = get_kernel_constraints(w, p_t_np, pi_np, self.Psi_np)
             constraints.extend(kernel_consts)
-            if self.const_type == "box":
-                constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
+            if "box" in self.const_type:
+                constraints.extend(
+                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
+                )
             else:
                 f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
                 constraints.extend(f_div_const)
@@ -112,7 +122,9 @@ class KCMCEstimator(BaseEstimator):
         self.problem = problem
         self.eta_kcmc = torch.as_tensor(kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
-        self.eta_f = torch.as_tensor(f_div_const[0].dual_value if self.const_type != "box" else 1.0)
+        self.eta_f = torch.as_tensor(
+            f_div_const[0].dual_value if "box" not in self.const_type else 1.0
+        )
         return self
 
     def predict(self) -> torch.Tensor:
@@ -135,61 +147,70 @@ class KCMCEstimator(BaseEstimator):
         )
         return dual.mean()
 
-    def predict_gic(self):
+    def predict_gic(self) -> torch.Tensor:
         n = self.Y.shape[0]
         scores = self._get_dual_jacobian()
-        V = score.T @ scores / n
+        V = scores.T @ scores / n
         J = self._get_dual_hessian()
         J_inv = torch.pinv(J)
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / n
         return gic
 
-    def _get_fitted_dual_loss(self, eta):
-        if self.const_type == "box":
+    def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
+        if "box" in self.const_type:
             eta_kcmc = eta
             eta_f = torch.zeros(1)
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
         loss = dual_objective(
-            self.Y, self.Psi, self.p_t, self.pi, eta_kcmc, eta_f,
-            self.gamma, self.Gamma, self.const_type
+            self.Y,
+            self.Psi,
+            self.p_t,
+            self.pi,
+            eta_kcmc,
+            eta_f,
+            self.gamma,
+            self.Gamma,
+            self.const_type,
         )
         return loss
 
     def _get_dual_hessian(self) -> torch.Tensor:
-        if self.const_type == "box":
+        if "box" in self.const_type:
             # Use numpy for computation in this block.
-            (Y_np, T_np, X_np, p_t_np, eta_kcmc_np) = as_ndarrays(
-                self.Y, self.T, self.X, self.p_t, self.eta_kcmc
+            Y_np, T_np, X_np, p_t_np, pi_np, eta_kcmc_np = as_ndarrays(
+                self.Y, self.T, self.X, self.p_t, self.pi, self.eta_kcmc
             )
-            a, b= get_a_b(p_t_np, self.Gamma)
-            # maybe demean Y as well
-            TX_np = np.concatenate([T, X], axis=1)
+            n = Y_np.shape[0]
+            a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
+
+            # estimate p_{y|tx}(Pshi @ eta_kcmc)
+            TX_np = np.concatenate([T_np, X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
             kernel = WhiteKernel() + ConstantKernel() * RBF()
-            model = GaussianProcessRegressor(kernel=kernel).fit(TX_np[:1000], Y_np[:1000])
+            model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
+            model.fit(TX_np[:1000], Y_np[:1000])
             y_mean, y_std = model.predict(TX_np, return_std=True)
             r_mean, r_std = map(lambda x: x * pi_np / p_t_np, [y_mean, y_std])
             conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np, loc=r_mean, scale=r_std)
-            J_diag = np.diag(p_t_np * (b - a) * conditional_pdf)
-            J = Psi.T @ J_diag @ Psi / n
+
+            diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+            # TODO: fix dtype for torch.as_tensor
+            H = torch.as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
-            Psi = torch.as_tensor(self.Psi_np)
             eta = torch.concat([self.eta_kcmc, self.eta_f])
-            eta = torch.as_tensor(eta.data, requires_grad=True)
-            H = hessian(lambda eta: self.get_fitted_dual_loss(eta).mean(), eta)
-        raise H
+            eta = torch.tensor(eta.data, requires_grad=True)
+            H = hessian(lambda eta: self.get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
+        return H
 
     def _get_dual_jacobian(self) -> torch.Tensor:
-        if self.const_type == "box":
-            eta = torch.as_tensor(self.eta_kcmc.data, requires_grad=True)
+        if "box" in self.const_type:
+            eta = torch.tensor(self.eta_kcmc.data, requires_grad=True)
         else:
             eta = torch.concat([self.eta_kcmc, self.eta_f])
-            eta = torch.as_tensor(eta.data, requires_grad=True)
-        Psi = torch.as_tensor(self.Psi_np)
-        eta = _get_differentiable_eta()
-        H = jacobian(lambda eta: self.get_fitted_dual_loss(eta), eta)
+            eta = torch.tensor(eta.data, requires_grad=True)
+        H = jacobian(lambda eta: self.get_fitted_dual_loss(eta), eta)  # type: ignore
         raise H
 
 
@@ -204,19 +225,14 @@ def dual_objective(
     Gamma: float,
     const_type: str,
 ) -> torch.Tensor:
-    pi = policy.prob(T, X)
-    Psi = torch.as_tensor(Psi_np)
-    f_conj = get_f_conjugate(Gamma, gamma, p_t, f_divergence, tan_box_const, lr_box_const, f_const)
-    Psi, p_t, r_np, gamma = map(torch.tensor, [Psi, p_t, r_np, gamma])
-    dual = (
-        -eta_f * self.gamma
-        + Psi @ self.eta_kcmc
-        - eta_f * f_conj((Psi @ eta_kcmc - r_np / p_t) / eta_f)
-    )
+    f_conj = get_f_conjugate(p_t, Gamma, const_type)
+    dual = -eta_f * gamma + Psi @ eta_kcmc - eta_f * f_conj((Psi @ eta_kcmc - Y * pi / p_t) / eta_f)
     return dual
 
 
 class DualKCMCEstimator(BaseEstimator):
+    """TODO: Maybe fix torch.as_tensor's dtype issue first."""
+
     pass
 
 
@@ -246,7 +262,7 @@ class GPKCMCEstimator(BaseEstimator):
         kernel: Kernel | None = None,
     ) -> None:
         assert const_type in CONSTRAINT_TYPES
-        if const_type == "box":
+        if "box" in const_type:
             assert Gamma is not None and Gamma >= 1
         else:
             assert gamma is not None and gamma >= 0
@@ -294,8 +310,10 @@ class GPKCMCEstimator(BaseEstimator):
             constraints.extend(
                 get_gp_constraints(w, p_t_np, pi_np, self.Psi_np, self.sigma2, self.alpha)
             )
-            if self.const_type == "box":
-                constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
+            if "box" in self.const_type:
+                constraints.extend(
+                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
+                )
             else:
                 constraints.extend(get_f_div_constraint(w, p_t_np, self.gamma, self.const_type))
 

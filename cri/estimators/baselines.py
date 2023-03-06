@@ -117,9 +117,9 @@ class ZSBEstimator(BaseEstimator):
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
             constraints.extend(get_hajek_constraints(w, T_np, p_t_np))
             if self.use_fractional_programming:
-                constraints.extend(get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma))
+                constraints.extend(get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma, "Tan_box"))
             else:
-                constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
+                constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma, "Tan_box"))
 
             problem = cp.Problem(objective, constraints)
             problem.solve()
@@ -149,18 +149,23 @@ class QBEstimator(BaseEstimator):
             equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
         kernel: Kernel used in the low-rank kernel quantile regression.
+        const_type: Type of box constraints. A valid argument is either "Tan_box" (Tan's MSN) or
+            "lr_box" (likelihood ratio).
     """
 
     def __init__(
         self,
         Gamma: float,
+        const_type: str,
         D: int = 30,
         kernel: Kernel | None = None,
     ) -> None:
         assert Gamma >= 1
+        assert const_type in ["Tan_box", "lr_box"]
         self.Gamma = Gamma
         self.D = D
         self.kernel = kernel
+        self.const_type = const_type
 
     def fit(
         self,
@@ -194,7 +199,7 @@ class QBEstimator(BaseEstimator):
             objective = cp.Minimize(cp.sum(r_np * w))
 
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
-            constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma))
+            constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type))
             constraints.extend(
                 get_qb_constraint(
                     w, Y_np, self.Psi_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
