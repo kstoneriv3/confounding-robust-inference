@@ -15,11 +15,12 @@ class BaseEstimator:
         """Solve the minimization problem for obtaining the lower bound for the given data.
 
         Args:
-            Y: Outcome variable
-            T: Action variable (i.e. treatment)
-            X: Context variable
-            p_t: Nominal propensity p_obs(t|x)
-            policy: Policy to be evaluated
+            Y: Outcome variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            T: Action variable (i.e. treatment).
+            X: Context variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            p_t: Nominal propensity p_obs(t|x). Its dtype must be
+                cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            policy: Policy to be evaluated.
         """
         raise NotImplementedError
 
@@ -39,10 +40,11 @@ class BaseEstimator:
         for the given samples.
 
         Args:
-            Y: Outcome variable
-            T: Action variable (i.e. treatment)
-            X: Context variable
-            p_t: Nominal propensity p_obs(t|x)
+            Y: Outcome variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            T: Action variable (i.e. treatment).
+            X: Context variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            p_t: Nominal propensity p_obs(t|x). Its dtype must be
+                cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
             policy: Policy to be evaluated
 
         Returns:

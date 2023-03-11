@@ -3,6 +3,7 @@ import warnings
 import cvxpy as cp
 import numpy as np
 import torch
+from scipy.linalg import eigh
 from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
@@ -25,7 +26,7 @@ from cri.estimators.misc import (
     select_kernel,
 )
 from cri.policies import BasePolicy
-from cri.utils.types import as_ndarrays
+from cri.utils.types import as_ndarrays, as_tensor
 
 CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
 
@@ -117,14 +118,12 @@ class KCMCEstimator(BaseEstimator):
             )
 
         self.w = torch.zeros_like(p_t)
-        self.w[:] = torch.as_tensor(w.value)
+        self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(w * r)
         self.problem = problem
-        self.eta_kcmc = torch.as_tensor(kernel_consts[0].dual_value)  # need to match sign!
+        self.eta_kcmc = as_tensor(kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
-        self.eta_f = torch.as_tensor(
-            f_div_const[0].dual_value if "box" not in self.const_type else 1.0
-        )
+        self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
         return self
 
     def predict(self) -> torch.Tensor:
@@ -138,11 +137,10 @@ class KCMCEstimator(BaseEstimator):
         p_t: torch.Tensor,
         policy: BasePolicy,
     ) -> torch.Tensor:
-        """Calculate the average value of dual objective for given samples.
-        """
         assert hasattr(self, "fitted_lower_bound")
+        assert_input(Y, T, X, p_t)
         T_np, X_np = as_ndarrays(T, X)
-        Psi = torch.as_tensor(get_orthogonal_basis(T_np, X_np, self.D, self.kernel))
+        Psi = as_tensor(get_orthogonal_basis(T_np, X_np, self.D, self.kernel))
         pi = policy.prob(T, X)
         dual = dual_objective(
             Y, Psi, p_t, pi, self.eta_kcmc, self.eta_f, self.gamma, self.Gamma, self.const_type
@@ -150,40 +148,42 @@ class KCMCEstimator(BaseEstimator):
         return dual.mean()
 
     def predict_gic(self) -> torch.Tensor:
-        """Calculate the Generalized Information Criterion (GIC) of the lower bound.
-        """
+        """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
         n = self.Y.shape[0]
-        score = self._get_dual_jacobian()
+        scores = self._get_dual_jacobian()
         V = scores.T @ scores / n
         J = self._get_dual_hessian()
         J_inv = torch.pinv(J)
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
         return gic
 
-    def predict_ci(self, n_boot: int = 2**20, alpha: float = 0.05):
+    def predict_ci(
+        self, n_boot: int = 2**20, alpha: float = 0.05
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
         Bootstrap with used for calculating the percentile of the asymptotic distribution.
 
         Args:
-            n_boot: The number of Monte Carlo samples used to calculate the percentile of the 
+            n_boot: The number of Monte Carlo samples used to calculate the percentile of the
                 asymptotic distribution by bootstraping.
             alpha: Significance level of used for the confidence interval.
         """
         n = self.Y.shape[0]
         losses = self._get_fitted_dual_loss(self.eta)
         scores = self._get_dual_jacobian()
-        l_s = torch.concat([losses, scores], axis=1)
+        l_s = torch.concat([losses, scores], dim=1)
         V_joint = l_s.T @ l_s.T / n
         J = self._get_dual_hessian()
         J_inv = torch.pinv(J)
 
         S, U = eigh(V_joint / n)
-        normal_samples = torch.quasirandom.SobolEngine(1 + self.eta.shape[0]).draw(n_boot)
+        en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0])  # type: ignore
+        normal_samples = en.draw(n_boot)
         boot_l_s = U @ torch.sqrt(S) @ normal_samples
         boot_l_s[:, 0] += self.fitted_lower_bound
         boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta_shape[0]])
-        boot_lb =  boot_losses - torch.einsum("ni,ij,jn->n", boot_scores.T, J_inv, boot_scores) / n
+        boot_lb = boot_losses - torch.einsum("ni,ij,jn->n", boot_scores.T, J_inv, boot_scores) / n
         low = torch.quantile(boot_lb, alpha / 2)
         high = torch.quantile(boot_lb, 1 - alpha / 2)
         return low, high
@@ -210,7 +210,7 @@ class KCMCEstimator(BaseEstimator):
         return loss
 
     @property
-    def eta(self):
+    def eta(self) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints so ignore eta_f then.
         if "box" in self.const_type:
             return self.eta_kcmc.data
@@ -237,8 +237,7 @@ class KCMCEstimator(BaseEstimator):
             conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np, loc=r_mean, scale=r_std)
 
             diag = np.diag(p_t_np * (b - a) * conditional_pdf)
-            # TODO: fix dtype for torch.as_tensor
-            H = torch.as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            H = as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self.get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
@@ -267,7 +266,7 @@ def dual_objective(
 
 
 class DualKCMCEstimator(BaseEstimator):
-    """TODO: Maybe fix torch.as_tensor's dtype issue first."""
+    """ """
 
     pass
 
@@ -414,7 +413,7 @@ class GPKCMCEstimator(BaseEstimator):
             )
 
         self.w = torch.zeros_like(p_t)
-        self.w[:] = torch.as_tensor(w.value)
+        self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(w * r)
         self.problem = problem
         return self

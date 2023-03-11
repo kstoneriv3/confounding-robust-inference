@@ -8,7 +8,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler
 
-from cri.utils.types import as_ndarrays, as_tensors
+from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensors
 
 F_DIVERGENCES = [
     "KL",
@@ -147,5 +147,10 @@ def assert_input(
     assert len(X.shape) == 2
     assert len(p_t.shape) == 1
 
-    assert Y.shape[0] == T.shape[0] == X.shape[0]
-    assert Y.dtype == X.dtype == X.dtype
+    n = Y.shape[0]
+    assert T.shape[0] == n
+    assert X.shape[0] == n
+    assert p_t.shape[0] == n
+    assert Y.dtype == _DEFAULT_TORCH_FLOAT_DTYPE
+    assert X.dtype == _DEFAULT_TORCH_FLOAT_DTYPE
+    assert p_t.dtype == _DEFAULT_TORCH_FLOAT_DTYPE

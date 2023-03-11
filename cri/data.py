@@ -8,7 +8,7 @@ from scipy.stats import norm
 
 from cri.policies import BasePolicy
 from cri.utils.propensity import estimate_p_t_binary
-from cri.utils.types import as_tensors
+from cri.utils.types import as_tensor, as_tensors
 
 
 class DataTuple(NamedTuple):
@@ -78,12 +78,12 @@ class SyntheticDataBinary(BaseData):
         # We define constants in __init__ to avoid issues around different torch dtype.
         self.beta0 = 2.5
         self.beta0_t = -2
-        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
-        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_x = as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
         self.beta_xi = 1
         self.beta_xi_t = -2
-        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
-        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+        self.beta_p_t = as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
         xi = (torch.rand(n) > 0.5).int()
@@ -141,12 +141,12 @@ class SyntheticDataContinuous(BaseData):
         # We define constants in __init__ to avoid issues around different torch dtype.
         self.beta0 = 2.5
         self.beta0_t = -2
-        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
-        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_x = as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
         self.beta_xi = 1
         self.beta_xi_t = -2
-        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
-        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+        self.beta_p_t = as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
         xi = (torch.rand(n) > 0.5).int()
@@ -200,12 +200,12 @@ class SyntheticDataKallusZhou2018(BaseData):
         # We define constants in __init__ to avoid issues around different torch dtype.
         self.beta0 = 2.5
         self.beta0_t = -2
-        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
-        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_x = as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
         self.beta_xi = 1
         self.beta_xi_t = -2
-        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
-        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+        self.beta_p_t = as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
         xi = (torch.rand(n) > 0.5).int()
@@ -260,12 +260,12 @@ class SyntheticDataKallusZhou2018Continuous(BaseData):
         # We define constants in __init__ to avoid issues around different torch dtype.
         self.beta0 = 2.5
         self.beta0_t = -2
-        self.beta_x = torch.as_tensor([0, 0.5, -0.5, 0, 0])
-        self.beta_x_t = torch.as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
+        self.beta_x = as_tensor([0, 0.5, -0.5, 0, 0])
+        self.beta_x_t = as_tensor([-1.5, 1, -1.5, 1.0, 0.5])
         self.beta_xi = 1
         self.beta_xi_t = -2
-        self.beta_p_t = torch.as_tensor([0, 0.75, -0.5, 0, -1])
-        self.mu_x = torch.as_tensor([-1, 0.5, -1, 0, -1])
+        self.beta_p_t = as_tensor([0, 0.75, -0.5, 0, -1])
+        self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
         xi = (torch.rand(n) > 0.5).int()
@@ -370,7 +370,6 @@ class NLSDataDornGuo2022:
         # df.describe()
 
         Y = np.log(df.wage.to_numpy())
-        Y = torch.as_tensor(Y).float()
         T = df.union.to_numpy()
         X = df.drop(columns=["wage", "union"]).to_numpy().astype(float)
 

@@ -15,7 +15,7 @@ from cri.estimators.constraints import (
 )
 from cri.estimators.misc import assert_input, get_orthogonal_basis, normalize_p_t, select_kernel
 from cri.policies import BasePolicy
-from cri.utils.types import as_ndarrays
+from cri.utils.types import as_ndarrays, as_tensor
 
 
 class IPWEstimator(BaseEstimator):
@@ -132,7 +132,7 @@ class ZSBEstimator(BaseEstimator):
             )
 
         self.w = torch.zeros_like(p_t)
-        self.w[:] = torch.as_tensor(w.value)
+        self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(w * r)
         self.problem = problem
         return self
@@ -217,7 +217,7 @@ class QBEstimator(BaseEstimator):
             )
 
         self.w = torch.zeros_like(p_t)
-        self.w[:] = torch.as_tensor(w.value)
+        self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(w * r)
         self.problem = problem
         return self
