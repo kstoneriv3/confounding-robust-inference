@@ -6,7 +6,8 @@ import torch
 from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
-from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensors
 
@@ -56,6 +57,22 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
 }
 
 
+def get_dual_objective(
+    Y: torch.Tensor,
+    Psi: torch.Tensor,
+    p_t: torch.Tensor,
+    pi: torch.Tensor,
+    eta_kcmc: torch.Tensor,
+    eta_f: torch.Tensor,
+    gamma: float,
+    Gamma: float,
+    const_type: str,
+) -> torch.Tensor:
+    f_conj = get_f_conjugate(p_t, Gamma, const_type)
+    dual = -eta_f * gamma + Psi @ eta_kcmc - eta_f * f_conj((Psi @ eta_kcmc - Y * pi / p_t) / eta_f)
+    return dual
+
+
 def get_f_conjugate(
     p_t: torch.Tensor, Gamma: float, const_type: str
 ) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -77,22 +94,30 @@ def get_f_conjugate(
     return f_conj
 
 
-def get_orthogonal_basis(
-    T: np.ndarray,
-    X: np.ndarray,
-    D: int,
-    kernel: Kernel,
-) -> np.ndarray:
-    """Calculate kernel PCA's (empirically) orthogonal features and constant feature (intercept).
+class OrthogonalBasis(Pipeline):
+    """Calculate kernel PCA's (empirically) orthogonal features and constant feature (intercept)."""
 
-    Returns:
-        Feature matrix of shape (n, D + 1).
-    """
-    TX = np.concatenate([T[:, None], X], axis=1)
-    TX = StandardScaler().fit_transform(TX)
-    Psi = KernelPCA(D, kernel=kernel).fit_transform(TX)
-    Psi = np.concatenate([Psi, np.ones_like(Psi[:, :1])], axis=1)
-    return Psi
+    def __init__(self, D: int, kernel: Kernel) -> None:
+        add_intercept = FunctionTransformer(
+            lambda X: np.concatenate([X, np.ones_like(X[:, :1])], axis=1)
+        )
+        self.pipeline = Pipeline(
+            [
+                ("StandardScalaer", StandardScaler()),
+                ("KernelPCA", KernelPCA(D, kernel=kernel)),
+                ("AddIntercept", add_intercept),
+            ]
+        )
+
+    def fit(self, X: np.ndarray) -> "OrthogonalBasis":
+        self.pipeline.fit(X)
+        return self
+
+    def transform(self, X: np.ndarray) -> np.ndarray:
+        return self.pipeline.transform(X)
+
+    def fit_transform(self, X: np.ndarray) -> np.ndarray:
+        return self.pipeline.fit_transoform(X)
 
 
 def select_kernel(

@@ -20,9 +20,9 @@ from cri.estimators.constraints import (
 )
 from cri.estimators.misc import (
     F_DIVERGENCES,
+    OrthogonalBasis,
     assert_input,
-    get_f_conjugate,
-    get_orthogonal_basis,
+    get_dual_objective,
     select_kernel,
 )
 from cri.policies import BasePolicy
@@ -84,9 +84,11 @@ class KCMCEstimator(BaseEstimator):
         n = T.shape[0]
         r = Y * self.pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
-        self.Psi_np = get_orthogonal_basis(T_np, X_np, self.D, self.kernel)
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -140,9 +142,11 @@ class KCMCEstimator(BaseEstimator):
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
         T_np, X_np = as_ndarrays(T, X)
-        Psi = as_tensor(get_orthogonal_basis(T_np, X_np, self.D, self.kernel))
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np)
+        Psi = as_tensor(Psi_np)
         pi = policy.prob(T, X)
-        dual = dual_objective(
+        dual = get_dual_objective(
             Y, Psi, p_t, pi, self.eta_kcmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
         return dual.mean()
@@ -196,7 +200,7 @@ class KCMCEstimator(BaseEstimator):
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
-        loss = dual_objective(
+        loss = get_dual_objective(
             self.Y,
             self.Psi,
             self.p_t,
@@ -227,7 +231,7 @@ class KCMCEstimator(BaseEstimator):
             a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
 
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
-            TX_np = np.concatenate([T_np, X_np], axis=1)
+            TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
             kernel = WhiteKernel() + ConstantKernel() * RBF()
             model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
@@ -249,26 +253,127 @@ class KCMCEstimator(BaseEstimator):
         raise H
 
 
-def dual_objective(
-    Y: torch.Tensor,
-    Psi: torch.Tensor,
-    p_t: torch.Tensor,
-    pi: torch.Tensor,
-    eta_kcmc: torch.Tensor,
-    eta_f: torch.Tensor,
-    gamma: float,
-    Gamma: float,
-    const_type: str,
-) -> torch.Tensor:
-    f_conj = get_f_conjugate(p_t, Gamma, const_type)
-    dual = -eta_f * gamma + Psi @ eta_kcmc - eta_f * f_conj((Psi @ eta_kcmc - Y * pi / p_t) / eta_f)
-    return dual
-
-
 class DualKCMCEstimator(BaseEstimator):
-    """ """
+    """Dual Kernel Conditional Moment Constraints (KCMC) Estimator.
 
-    pass
+    Args:
+        const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
+            "inverse_KL", "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared",
+            "Neyman_chi_squared", and "total_variation".
+        gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
+            When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
+        Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
+            When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
+        D: Dimension of the low-rank approximation used in the kernel quantile regression.
+        kernel: Kernel used in the low-rank kernel quantile regression.
+    """
+
+    def __init__(
+        self,
+        const_type: str,
+        gamma: float | None = None,
+        Gamma: float | None = None,
+        D: int = 30,
+        kernel: Kernel | None = None,
+    ) -> None:
+        assert const_type in CONSTRAINT_TYPES
+        if "box" in const_type:
+            assert Gamma is not None and Gamma >= 1
+        else:
+            assert gamma is not None and gamma >= 0
+        self.const_type = const_type
+        self.gamma = gamma if gamma is not None else 0.0
+        self.Gamma = Gamma if Gamma is not None else 1.0
+        self.D = D
+        self.kernel = kernel
+
+    def fit(
+        self,
+        Y: torch.Tensor,
+        T: torch.Tensor,
+        X: torch.Tensor,
+        p_t: torch.Tensor,
+        policy: BasePolicy,
+        n_train_steps: int = 200,
+        batch_size: int = 1024,
+    ) -> "BaseEstimator":
+        assert_input(Y, T, X, p_t)
+        self.Y = Y
+        self.T = T
+        self.X = X
+        self.p_t = p_t
+        self.policy = policy
+        self.pi = policy.prob(X, T)
+
+        n = T.shape[0]
+        r = Y * self.pi
+        r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+
+        self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+
+        # For avoiding user warning about multiplication operator with `*` and `@`
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            w = cp.Variable(n)
+
+            objective = cp.Minimize(cp.sum(r_np * w))
+
+            constraints: list[cp.Constraint] = [np.zeros(n) <= w]
+            kernel_consts = get_kernel_constraints(w, p_t_np, pi_np, self.Psi_np)
+            constraints.extend(kernel_consts)
+            if "box" in self.const_type:
+                constraints.extend(
+                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
+                )
+            else:
+                f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
+                constraints.extend(f_div_const)
+
+            problem = cp.Problem(objective, constraints)
+            problem.solve()
+
+        if problem.status != "optimal":
+            raise ValueError(
+                "The optimizer found the associated convex programming to be {}.".format(
+                    problem.status
+                )
+            )
+
+        self.w = torch.zeros_like(p_t)
+        self.w[:] = as_tensor(w.value)
+        self.fitted_lower_bound = torch.mean(w * r)
+        self.problem = problem
+        self.eta_kcmc = as_tensor(kernel_consts[0].dual_value)  # need to match sign!
+        # For box constraints, the dual objective does not depend on eta_f so it does not matter.
+        self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
+        return self
+
+    def predict(self) -> torch.Tensor:
+        return self.fitted_lower_bound
+
+    def predict_dual(
+        self,
+        Y: torch.Tensor,
+        T: torch.Tensor,
+        X: torch.Tensor,
+        p_t: torch.Tensor,
+        policy: BasePolicy,
+    ) -> torch.Tensor:
+        assert hasattr(self, "fitted_lower_bound")
+        assert_input(Y, T, X, p_t)
+        T_np, X_np = as_ndarrays(T, X)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np)
+        Psi = as_tensor(Psi_np)
+        pi = policy.prob(T, X)
+        dual = get_dual_objective(
+            Y, Psi, p_t, pi, self.eta_kcmc, self.eta_f, self.gamma, self.Gamma, self.const_type
+        )
+        return dual.mean()
 
 
 class GPKCMCEstimator(BaseEstimator):
@@ -379,9 +484,11 @@ class GPKCMCEstimator(BaseEstimator):
         pi = policy.prob(X, T)
         r = Y * pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
-        self.Psi_np = get_orthogonal_basis(T_np, X_np, self.D, self.kernel)
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
