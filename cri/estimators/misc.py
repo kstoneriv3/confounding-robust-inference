@@ -123,7 +123,7 @@ def normalize_p_t(p_t: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
 
 
 def get_a_b(p_t: np.ndarray, Gamma: float, const_type: str) -> tuple[np.ndarray, np.ndarray]:
-    # Tan's marginal sensitivity model (MSM), 1 / Gamma <= {p_t (1 - pi)} / {(1 - p_t) pi} <= Gamma.
+    # Tan's Marginal Sensitivity Model (MSM), 1 / Gamma <= {p_t (1 - pi)} / {(1 - p_t) pi} <= Gamma.
     if const_type == "Tan_box":
         a = 1 + 1 / Gamma * (1 / p_t - 1)
         b = 1 + Gamma * (1 / p_t - 1)

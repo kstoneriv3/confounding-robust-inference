@@ -19,7 +19,7 @@ from cri.utils.types import as_ndarrays
 
 
 class IPWEstimator(BaseEstimator):
-    """Inverse probability weightning (IPW) estimator."""
+    """Inverse Probability Weightning (IPW) estimator."""
 
     def fit(
         self,
@@ -74,7 +74,7 @@ class ZSBEstimator(BaseEstimator):
         use_fractional_programming: If True, linear fractional programming is used as in
             Zhao, Small, and Bhattacharya (2019). If False, it does not use linear fractional
             programming for lower bound calculation and instead normalize nominal propensity p_t
-            and uses takes more primitive approach used by marginal sensitivity model (MSM)
+            and uses takes more primitive approach used by the Marginal Sensitivity Model (MSM)
             by Tan (2006).
     """
 

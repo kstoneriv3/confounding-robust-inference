@@ -91,55 +91,6 @@ def get_gp_constraints(
 
     Returns:
         GP constraints
-
-    Here, as low-rank GP is equivalent to Bayesian ridge regression with design matrix
-    :math:`\\Psi_{n,d}=\psi_d(t_n, x_n)`. Thus, we use the following model with
-    :math:`\\sigma^2` estimated by empirical Bayes\:
-
-    .. math::
-       :nowrap:
-
-       \\begin{eqnarray}
-          \\beta &\\sim N(0, I_d), \\\\
-          e &= \\Psi \\beta + \\varepsilon, \\\\
-          \\varepsilon &\sim N(0, \sigma^2 I_n). \\\\
-       \\end{eqnarray}
-
-    For this model, the posterior and the credible set (highest posterior density set) of
-    :math:`\\beta` are
-
-    .. math::
-       :nowrap:
-
-       \\begin{eqnarray}
-          \\beta | e &\\sim N(\\mu_{\\beta|e}, \\Sigma_{\\beta|e})  \\\\
-       \\end{eqnarray}
-
-    and
-
-    .. math::
-       :nowrap:
-
-       \\begin{eqnarray}
-          \\mathrm{CI}_{\\beta|e}(1 - \\alpha) =
-          \\{\\beta:
-              (\\beta - \\mu_{\\beta|e})^T \\Sigma_{\\beta|e}^{-1} (\\beta - \\mu_{\\beta|e})
-              \\leq \chi^2_d(1 - \\alpha)
-          \\},
-       \\end{eqnarray}
-
-    where :math:`\\mu_\\beta=(\\Psi^T\\Psi+\\sigma^2I_d)^{-1}\\Psi^Te`
-    and :math:`\\Sigma_\\beta=(\\Psi^T\\Psi+\\sigma^2I_d)^{-1}`. Therefore, the condition 
-    :math:`0_d\\in \mathrm{CI}_{\\beta|e}(1 - \\alpha)` can be written as
-
-    .. math::
-       :nowrap:
-
-       \\begin{equation}
-          \\mu_{\\beta|e}^T \\Sigma_{\\beta|e}^{-1} \\mu_{\\beta|e}
-          = e^T \\Psi (\\Psi^T\\Psi + \\sigma^2I_d)^{-1} \\Psi^Te
-          \\leq \chi^2_d(1 - \\alpha).
-       \\end{equation}
     """
     n, d = Psi.shape
     S = np.sum(Psi**2, axis=0)  # Here, diag(S) = Psi.T @ Psi, as Psi's columns are orthogonal.
