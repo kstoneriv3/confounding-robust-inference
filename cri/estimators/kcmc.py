@@ -9,6 +9,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler
 from torch.autograd.functional import hessian, jacobian
+from torch.optim import SGD
 
 from cri.estimators.base import BaseEstimator
 from cri.estimators.constraints import (
@@ -19,6 +20,7 @@ from cri.estimators.constraints import (
     get_kernel_constraints,
 )
 from cri.estimators.misc import (
+    _DEFAULT_TORCH_FLOAT_DTYPE,
     F_DIVERGENCES,
     OrthogonalBasis,
     assert_input,
@@ -79,7 +81,7 @@ class KCMCEstimator(BaseEstimator):
         self.X = X
         self.p_t = p_t
         self.policy = policy
-        self.pi = policy.prob(X, T)
+        self.pi = policy.prob(T, X)
 
         n = T.shape[0]
         r = Y * self.pi
@@ -102,9 +104,7 @@ class KCMCEstimator(BaseEstimator):
             kernel_consts = get_kernel_constraints(w, p_t_np, pi_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
-                constraints.extend(
-                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
-                )
+                constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
             else:
                 f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
                 constraints.extend(f_div_const)
@@ -121,7 +121,7 @@ class KCMCEstimator(BaseEstimator):
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
-        self.fitted_lower_bound = torch.mean(w * r)
+        self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
         self.eta_kcmc = as_tensor(kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
@@ -145,9 +145,10 @@ class KCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi = as_tensor(Psi_np)
+        eta_cmc = Psi @ self.eta_kcmc
         pi = policy.prob(T, X)
         dual = get_dual_objective(
-            Y, Psi, p_t, pi, self.eta_kcmc, self.eta_f, self.gamma, self.Gamma, self.const_type
+            Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
         return dual.mean()
 
@@ -200,12 +201,12 @@ class KCMCEstimator(BaseEstimator):
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
+        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
         loss = get_dual_objective(
             self.Y,
-            self.Psi,
             self.p_t,
             self.pi,
-            eta_kcmc,
+            eta_cmc,
             eta_f,
             self.gamma,
             self.Gamma,
@@ -286,6 +287,8 @@ class DualKCMCEstimator(BaseEstimator):
         self.Gamma = Gamma if Gamma is not None else 1.0
         self.D = D
         self.kernel = kernel
+        self.eta_kcmc = torch.zeros(D + 1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
+        self.eta_f = torch.ones(1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
 
     def fit(
         self,
@@ -294,8 +297,9 @@ class DualKCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-        n_train_steps: int = 200,
+        n_steps: int = 200,
         batch_size: int = 1024,
+        lr: float = 1e-2,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
         self.Y = Y
@@ -303,7 +307,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.X = X
         self.p_t = p_t
         self.policy = policy
-        self.pi = policy.prob(X, T)
+        self.pi = policy.prob(T, X)
 
         n = T.shape[0]
         r = Y * self.pi
@@ -313,43 +317,40 @@ class DualKCMCEstimator(BaseEstimator):
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        eta_cmc = as_tensor(self.Psi_np) @ self.eta_kcmc
 
-        # For avoiding user warning about multiplication operator with `*` and `@`
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            w = cp.Variable(n)
-
-            objective = cp.Minimize(cp.sum(r_np * w))
-
-            constraints: list[cp.Constraint] = [np.zeros(n) <= w]
-            kernel_consts = get_kernel_constraints(w, p_t_np, pi_np, self.Psi_np)
-            constraints.extend(kernel_consts)
-            if "box" in self.const_type:
-                constraints.extend(
-                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
-                )
-            else:
-                f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
-                constraints.extend(f_div_const)
-
-            problem = cp.Problem(objective, constraints)
-            problem.solve()
-
-        if problem.status != "optimal":
-            raise ValueError(
-                "The optimizer found the associated convex programming to be {}.".format(
-                    problem.status
-                )
+        optimizer = SGD(params=[self.eta_kcmc, self.eta_f], lr=lr)
+        for i in range(n_steps):
+            train_idx = torch.as_tensor(np.random.choice(n, batch_size))
+            objective = -get_dual_objective(
+                self.Y[train_idx],
+                self.p_t[train_idx],
+                self.pi[train_idx],
+                eta_cmc[train_idx],
+                self.eta_f,
+                self.gamma,
+                self.Gamma,
+                self.const_type,
             )
+            objective.backward()  # type: ignore
+            optimizer.step()
+            optimizer.zero_grad()
 
-        self.w = torch.zeros_like(p_t)
-        self.w[:] = as_tensor(w.value)
-        self.fitted_lower_bound = torch.mean(w * r)
-        self.problem = problem
-        self.eta_kcmc = as_tensor(kernel_consts[0].dual_value)  # need to match sign!
-        # For box constraints, the dual objective does not depend on eta_f so it does not matter.
-        self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
+        lower_bounds = torch.zeros(n)
+        m = 8192
+        for i in range((n + m - 1) // m):
+            val_idx = slice(m * i, min(n, m * (i + 1)))
+            lower_bounds[val_idx] = get_dual_objective(
+                self.Y[val_idx],
+                self.p_t[val_idx],
+                self.pi[val_idx],
+                eta_cmc[train_idx],
+                self.eta_f,
+                self.gamma,
+                self.Gamma,
+                self.const_type,
+            )
+        self.fitted_lower_bound = torch.mean(lower_bounds)
         return self
 
     def predict(self) -> torch.Tensor:
@@ -368,10 +369,10 @@ class DualKCMCEstimator(BaseEstimator):
         T_np, X_np = as_ndarrays(T, X)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        Psi = as_tensor(Psi_np)
         pi = policy.prob(T, X)
+        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
         dual = get_dual_objective(
-            Y, Psi, p_t, pi, self.eta_kcmc, self.eta_f, self.gamma, self.Gamma, self.const_type
+            Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
         return dual.mean()
 
@@ -387,6 +388,7 @@ class GPKCMCEstimator(BaseEstimator):
             When gamma == 0.0, GP-KCMC estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
             When Gamma == 1.0, GP-KCMC estimator is equivalent to the IPW estimator.
+        D: Dimension of the low-rank approximation used in the kernel quantile regression.
         alpha: (Bayesian) Significance level of credible interval.
         sigma2: Noise level if the GP model.
         kernel: Kernel used by Gaussian process.
@@ -447,6 +449,7 @@ class GPKCMCEstimator(BaseEstimator):
         const_type: str,
         gamma: float | None = None,
         Gamma: float | None = None,
+        D: int = 30,
         alpha: float = 0.05,
         sigma2: float = 1.0,
         kernel: Kernel | None = None,
@@ -461,6 +464,7 @@ class GPKCMCEstimator(BaseEstimator):
         self.const_type = const_type
         self.gamma = gamma if gamma is not None else 0.0
         self.Gamma = Gamma if Gamma is not None else 1.0
+        self.D = D
         self.alpha = alpha
         self.sigma2 = sigma2
         self.kernel = kernel
@@ -481,7 +485,7 @@ class GPKCMCEstimator(BaseEstimator):
         self.policy = policy
 
         n = T.shape[0]
-        pi = policy.prob(X, T)
+        pi = policy.prob(T, X)
         r = Y * pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
@@ -503,9 +507,7 @@ class GPKCMCEstimator(BaseEstimator):
                 get_gp_constraints(w, p_t_np, pi_np, self.Psi_np, self.sigma2, self.alpha)
             )
             if "box" in self.const_type:
-                constraints.extend(
-                    get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
-                )
+                constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
             else:
                 constraints.extend(get_f_div_constraint(w, p_t_np, self.gamma, self.const_type))
 
@@ -521,7 +523,7 @@ class GPKCMCEstimator(BaseEstimator):
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
-        self.fitted_lower_bound = torch.mean(w * r)
+        self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
         return self
 

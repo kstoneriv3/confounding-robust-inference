@@ -68,7 +68,7 @@ class ATEPolicy(PolicyDifference):
         super().__init__(target_policy, base_policy)
 
 
-class GaussianPolicy:
+class GaussianPolicy(BasePolicy):
     """Continuous policy with conditional Gaussian density.
 
     The action follows Gaussian with mean beta^T x and standard deviation 0.5
@@ -93,7 +93,7 @@ class GaussianPolicy:
         return p_t_x
 
 
-class LogisticPolicy:
+class LogisticPolicy(BasePolicy):
     """Binary policy with logistic probability.
 
     The action follows the probability T|X=x ~ Bin(sigmoid(beta^T x)).

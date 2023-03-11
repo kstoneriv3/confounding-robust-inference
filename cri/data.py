@@ -132,9 +132,9 @@ class SyntheticDataContinuous(BaseData):
     """Synthetic data with with continuous action space and a known lower bound.
 
     This is synthetic data with continuous action space, similar to Kallus and Zhou (2018).
-    For this data, we know that analytic expression of the lower bound of Tan's marginal sensitivity
-    model. Thus, this synthetic data can be is used to test the consistency and asypmtotic property
-    of estimators.
+    For this data, we know that analytic expression of the lower bound of likelihood ratio
+    sensitivity model. Thus, this synthetic data can be is used to test the consistency and
+    asypmtotic property of estimators.
     """
 
     def __init__(self) -> None:

@@ -59,17 +59,16 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
 
 def get_dual_objective(
     Y: torch.Tensor,
-    Psi: torch.Tensor,
     p_t: torch.Tensor,
     pi: torch.Tensor,
-    eta_kcmc: torch.Tensor,
+    eta_cmc: torch.Tensor,
     eta_f: torch.Tensor,
     gamma: float,
     Gamma: float,
     const_type: str,
 ) -> torch.Tensor:
     f_conj = get_f_conjugate(p_t, Gamma, const_type)
-    dual = -eta_f * gamma + Psi @ eta_kcmc - eta_f * f_conj((Psi @ eta_kcmc - Y * pi / p_t) / eta_f)
+    dual = -eta_f * gamma + eta_cmc - eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)
     return dual
 
 
@@ -94,7 +93,7 @@ def get_f_conjugate(
     return f_conj
 
 
-class OrthogonalBasis(Pipeline):
+class OrthogonalBasis:
     """Calculate kernel PCA's (empirically) orthogonal features and constant feature (intercept)."""
 
     def __init__(self, D: int, kernel: Kernel) -> None:
@@ -117,7 +116,7 @@ class OrthogonalBasis(Pipeline):
         return self.pipeline.transform(X)
 
     def fit_transform(self, X: np.ndarray) -> np.ndarray:
-        return self.pipeline.fit_transoform(X)
+        return self.pipeline.fit_transform(X)
 
 
 def select_kernel(

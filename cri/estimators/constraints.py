@@ -25,14 +25,18 @@ def get_zsb_box_constraints(
     Gamma: float,
     const_type: str,
 ) -> List[cp.Constraint]:
-    scale = cp.Variable(1)
+    setT = set(T)
+    scale = cp.Variable(len(setT))
     a, b = get_a_b(p_t, Gamma, const_type)
-    return [0 <= scale, scale * a <= w, w <= scale * b]
+    constraints = [np.zeros(len(setT)) <= scale]
+    for t in setT:
+        constraints.append(scale[t] * a[T == t] <= w[T == t])
+        constraints.append(w[T == t] <= scale[t] * b[T == t])
+    return constraints
 
 
 def get_box_constraints(
     w: cp.Variable,
-    T: np.ndarray,
     p_t: np.ndarray,
     Gamma: float,
     const_type: str,

@@ -102,7 +102,7 @@ class ZSBEstimator(BaseEstimator):
         # Necessary for ensuring the feasibility for small Gamma under box and Hajek constraints.
         if not self.use_fractional_programming:
             p_t = normalize_p_t(p_t, T)
-        pi = policy.prob(X, T)
+        pi = policy.prob(T, X)
         r = Y * pi
         r_np, Y_np, T_np, p_t_np = as_ndarrays(r, Y, T, p_t)
 
@@ -119,7 +119,7 @@ class ZSBEstimator(BaseEstimator):
             if self.use_fractional_programming:
                 constraints.extend(get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma, "Tan_box"))
             else:
-                constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma, "Tan_box"))
+                constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, "Tan_box"))
 
             problem = cp.Problem(objective, constraints)
             problem.solve()
@@ -133,7 +133,7 @@ class ZSBEstimator(BaseEstimator):
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
-        self.fitted_lower_bound = torch.mean(w * r)
+        self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
         return self
 
@@ -155,8 +155,8 @@ class QBEstimator(BaseEstimator):
 
     def __init__(
         self,
-        Gamma: float,
         const_type: str,
+        Gamma: float,
         D: int = 30,
         kernel: Kernel | None = None,
     ) -> None:
@@ -183,7 +183,7 @@ class QBEstimator(BaseEstimator):
         self.policy = policy
         n = T.shape[0]
 
-        pi = policy.prob(X, T)
+        pi = policy.prob(T, X)
         r = Y * pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
@@ -200,7 +200,7 @@ class QBEstimator(BaseEstimator):
             objective = cp.Minimize(cp.sum(r_np * w))
 
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
-            constraints.extend(get_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type))
+            constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
             constraints.extend(
                 get_qb_constraint(
                     w, Y_np, self.Psi_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
@@ -219,7 +219,7 @@ class QBEstimator(BaseEstimator):
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
-        self.fitted_lower_bound = torch.mean(w * r)
+        self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
         return self
 
