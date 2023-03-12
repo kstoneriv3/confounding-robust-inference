@@ -63,9 +63,40 @@ def test_zero_outcome(
     assert torch.isclose(est, zero, atol=atol)
 
 
+def test_true_lower_bound() -> None:
+    pass
+
+
+def test_overfitting() -> None:
+    # predict dual for out-of-fit data
+    pass
+
+
+def test_singleton_uncertainty_set() -> None:
+    pass
+
+
+def test_strong_duality() -> None:
+    pass
+
+
+def test_gic() -> None:
+    pass
+
+
+def test_ci() -> None:
+    pass
+
+
 def test_hajek_estimator(binary_data: DataTuple, toy_policy: BasePolicy) -> None:
     Y, T, X, _, p_t, _ = binary_data
     hajek = HajekEstimator().fit(Y, T, X, p_t, toy_policy).predict()
     p_t_normalized = normalize_p_t(p_t, T)
     ipw = IPWEstimator().fit(Y, T, X, p_t_normalized, toy_policy).predict()
     assert torch.isclose(hajek, ipw)
+
+
+# how many parameters are there?
+# - 6 different lower bound estimators
+# - 9 different const_types
+# - binary and continuous treatment space
