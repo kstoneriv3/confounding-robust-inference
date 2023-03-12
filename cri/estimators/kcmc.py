@@ -146,7 +146,7 @@ class KCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi = as_tensor(Psi_np)
-        eta_cmc = Psi @ self.eta_kcmc
+        eta_cmc = Psi @ self.eta_kcmc * pi / p_t
         pi = policy.prob(T, X)
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
@@ -157,7 +157,9 @@ class KCMCEstimator(BaseEstimator):
         """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
         n = self.Y.shape[0]
         scores = self._get_dual_jacobian()
-        V = scores.T @ scores / n
+        V_obj = scores.T @ scores / n
+        if "box" in self.const_type:
+            raise NotImplementedError
         J = self._get_dual_hessian()
         J_inv = torch.pinv(J)
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
@@ -202,7 +204,7 @@ class KCMCEstimator(BaseEstimator):
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
-        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
+        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc * self.pi / self.p_t
         loss = get_dual_objective(
             self.Y,
             self.p_t,
@@ -318,7 +320,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        eta_cmc = as_tensor(self.Psi_np) @ self.eta_kcmc
+        eta_cmc = as_tensor(self.Psi_np) @ self.eta_kcmc * self.pi / self.p_t
 
         optimizer = SGD(params=[self.eta_kcmc, self.eta_f], lr=lr)
         for i in range(n_steps):
@@ -371,7 +373,7 @@ class DualKCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
         pi = policy.prob(T, X)
-        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
+        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
