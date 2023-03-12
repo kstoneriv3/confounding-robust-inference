@@ -5,6 +5,7 @@ from torch.optim import SGD
 from cri.estimators.base import BaseEstimator
 from cri.estimators.misc import F_DIVERGENCES, assert_input, get_dual_objective
 from cri.policies import BasePolicy
+from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE
 
 CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
 
@@ -51,21 +52,21 @@ class DualNCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-        n_steps: int = 200,
+        n_steps: int = 50,
         batch_size: int = 1024,
-        lr: float = 1e-2,
+        lr: float = 3e-2,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
         pi = policy.prob(T, X)
-        TX = torch.concat([T[:, None], X], dim=1)
-        self.eta_nn, self.eta_f = get_multipliers(TX.shape[0], self.n_hidden, self.n_layers)
+        TX = torch.concat([T[:, None], X], dim=1).float()  # use float 32 for NN
+        self.eta_nn, self.eta_f = get_multipliers(TX.shape[1], self.n_hidden, self.n_layers)
 
         n = T.shape[0]
 
         optimizer = SGD(params=list(self.eta_nn.parameters()) + [self.eta_f], lr=lr)
         for i in range(n_steps):
             train_idx = torch.as_tensor(np.random.choice(n, batch_size))
-            eta_cmc = self.eta_nn(TX[train_idx]) * pi[train_idx] / p_t[train_idx]
+            eta_cmc = self.eta_nn(TX[train_idx])[:, 0] * pi[train_idx] / p_t[train_idx]
             objective = -get_dual_objective(
                 Y[train_idx],
                 p_t[train_idx],
@@ -75,7 +76,8 @@ class DualNCMCEstimator(BaseEstimator):
                 self.gamma,
                 self.Gamma,
                 self.const_type,
-            )
+            ).mean()
+            assert False, objective
             objective.backward()  # type: ignore
             optimizer.step()
             optimizer.zero_grad()
@@ -84,7 +86,7 @@ class DualNCMCEstimator(BaseEstimator):
         lower_bounds = torch.zeros(n)
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
-            eta_cmc = self.eta_nn(TX[val_idx]) * pi[val_idx] / p_t[val_idx]
+            eta_cmc = self.eta_nn(TX[val_idx])[:, 0] * pi[val_idx] / p_t[val_idx]
             lower_bounds[val_idx] = get_dual_objective(
                 Y[val_idx],
                 p_t[val_idx],
@@ -95,7 +97,7 @@ class DualNCMCEstimator(BaseEstimator):
                 self.Gamma,
                 self.const_type,
             )
-        self.fitted_lower_bound = torch.mean(lower_bounds)
+        self.fitted_lower_bound = torch.mean(lower_bounds).to(_DEFAULT_TORCH_FLOAT_DTYPE)
         return self
 
     def predict(self) -> torch.Tensor:
@@ -113,11 +115,11 @@ class DualNCMCEstimator(BaseEstimator):
         assert_input(Y, T, X, p_t)
         pi = policy.prob(T, X)
         TX = torch.concat([T[:, None], X], dim=1)
-        eta_cmc = self.eta_nn(TX) * pi / p_t
+        eta_cmc = self.eta_nn(TX)[:, 0] * pi / p_t
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
-        return dual.mean()
+        return dual.mean().to(_DEFAULT_TORCH_FLOAT_DTYPE)
 
 
 def get_multipliers(

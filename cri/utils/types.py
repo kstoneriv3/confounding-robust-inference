@@ -18,7 +18,7 @@ def set_default_torch_dtype(dtype: torch.dtype) -> None:
     _DEFAULT_TORCH_FLOAT_DTYPE = dtype
 
 
-def as_tensor(arr: float | list | np.ndarray, dtype: torch.dtype | None = None) -> torch.Tensor:
+def as_tensor(arr: float | list | np.ndarray) -> torch.Tensor:
     tensor = torch.as_tensor(arr)
     if tensor.is_floating_point():
         return tensor.to(_DEFAULT_TORCH_FLOAT_DTYPE)

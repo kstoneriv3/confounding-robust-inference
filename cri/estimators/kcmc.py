@@ -105,6 +105,7 @@ class KCMCEstimator(BaseEstimator):
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
+                pass
             else:
                 f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
                 constraints.extend(f_div_const)
