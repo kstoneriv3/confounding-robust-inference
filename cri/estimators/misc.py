@@ -68,7 +68,7 @@ def get_dual_objective(
     const_type: str,
 ) -> torch.Tensor:
     f_conj = get_f_conjugate(p_t, Gamma, const_type)
-    dual = -eta_f * gamma + eta_cmc - eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)
+    dual = -gamma * eta_f + eta_cmc - eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)
     return dual
 
 
@@ -79,10 +79,12 @@ def get_f_conjugate(
         (p_t_np,) = as_ndarrays(p_t)
         a_np, b_np = get_a_b(p_t_np, Gamma, const_type)
         a, b = as_tensors(a_np, b_np)
+        a_w_tilde = a * p_t
+        b_w_tilde = b * p_t
         f_conj: Callable[[torch.Tensor], torch.Tensor]
 
         def f_conj(v: torch.Tensor) -> torch.Tensor:
-            return torch.where(v > 0.0, b * v, a * v)
+            return torch.where(v < 0.0, a_w_tilde * v, b_w_tilde * v)
 
     else:
         # See

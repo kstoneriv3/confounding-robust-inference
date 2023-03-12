@@ -62,6 +62,7 @@ class DualNCMCEstimator(BaseEstimator):
         self.eta_nn, self.log_eta_f = get_multipliers(TX.shape[1], self.n_hidden, self.n_layers)
 
         n = T.shape[0]
+        batch_size = min(n, batch_size)
 
         optimizer = SGD(params=list(self.eta_nn.parameters()) + [self.log_eta_f], lr=lr)
         for i in range(n_steps):
@@ -71,7 +72,7 @@ class DualNCMCEstimator(BaseEstimator):
                 Y[train_idx],
                 p_t[train_idx],
                 pi[train_idx],
-                eta_cmc[train_idx],
+                eta_cmc,
                 self.eta_f,
                 self.gamma,
                 self.Gamma,

@@ -142,12 +142,12 @@ class KCMCEstimator(BaseEstimator):
     ) -> torch.Tensor:
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
+        pi = policy.prob(T, X)
         T_np, X_np = as_ndarrays(T, X)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc * pi / p_t
-        pi = policy.prob(T, X)
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
@@ -157,9 +157,7 @@ class KCMCEstimator(BaseEstimator):
         """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
         n = self.Y.shape[0]
         scores = self._get_dual_jacobian()
-        V_obj = scores.T @ scores / n
-        if "box" in self.const_type:
-            raise NotImplementedError
+        V = scores.T @ scores / n
         J = self._get_dual_hessian()
         J_inv = torch.pinv(J)
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
@@ -291,7 +289,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.D = D
         self.kernel = kernel
         self.eta_kcmc = torch.zeros(D + 1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
-        self.eta_f = torch.ones(1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
+        self.log_eta_f = torch.zeros(1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
 
     def fit(
         self,
@@ -300,9 +298,9 @@ class DualKCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-        n_steps: int = 200,
+        n_steps: int = 50,
         batch_size: int = 1024,
-        lr: float = 1e-2,
+        lr: float = 3e-2,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
         self.Y = Y
@@ -313,6 +311,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.pi = policy.prob(T, X)
 
         n = T.shape[0]
+        batch_size = min(n, batch_size)
         r = Y * self.pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
@@ -320,40 +319,46 @@ class DualKCMCEstimator(BaseEstimator):
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        eta_cmc = as_tensor(self.Psi_np) @ self.eta_kcmc * self.pi / self.p_t
 
-        optimizer = SGD(params=[self.eta_kcmc, self.eta_f], lr=lr)
+        optimizer = SGD(params=[self.eta_kcmc, self.log_eta_f], lr=lr)
         for i in range(n_steps):
             train_idx = torch.as_tensor(np.random.choice(n, batch_size))
+            eta_cmc = (
+                as_tensor(self.Psi_np)[train_idx]
+                @ self.eta_kcmc
+                * self.pi[train_idx]
+                / self.p_t[train_idx]
+            )
             objective = -get_dual_objective(
                 self.Y[train_idx],
                 self.p_t[train_idx],
                 self.pi[train_idx],
-                eta_cmc[train_idx],
+                eta_cmc,
                 self.eta_f,
                 self.gamma,
                 self.Gamma,
                 self.const_type,
-            )
+            ).mean()
             objective.backward()  # type: ignore
             optimizer.step()
             optimizer.zero_grad()
 
+        m = 1024
         lower_bounds = torch.zeros(n)
-        m = 8192
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
-            lower_bounds[val_idx] = get_dual_objective(
-                self.Y[val_idx],
-                self.p_t[val_idx],
-                self.pi[val_idx],
-                eta_cmc[train_idx],
-                self.eta_f,
-                self.gamma,
-                self.Gamma,
-                self.const_type,
-            )
-        self.fitted_lower_bound = torch.mean(lower_bounds)
+            with torch.no_grad():
+                lower_bounds[val_idx] = get_dual_objective(
+                    self.Y[val_idx],
+                    self.p_t[val_idx],
+                    self.pi[val_idx],
+                    eta_cmc[train_idx],
+                    self.eta_f,
+                    self.gamma,
+                    self.Gamma,
+                    self.const_type,
+                )
+        self.fitted_lower_bound = torch.mean(lower_bounds).to(_DEFAULT_TORCH_FLOAT_DTYPE)
         return self
 
     def predict(self) -> torch.Tensor:
@@ -378,6 +383,10 @@ class DualKCMCEstimator(BaseEstimator):
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
         return dual.mean()
+
+    @property
+    def eta_f(self) -> torch.Tensor:
+        return self.log_eta_f.exp()
 
 
 class GPKCMCEstimator(BaseEstimator):
