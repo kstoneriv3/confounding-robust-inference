@@ -36,7 +36,7 @@ class KCMCEstimator(BaseEstimator):
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
-            "inverse_KL", "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared",
+            "inverse_KL", "squared_Hellinger", "Pearson_chi_squared",
             "Neyman_chi_squared", and "total_variation".
         gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
             When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
@@ -102,7 +102,7 @@ class KCMCEstimator(BaseEstimator):
             objective = cp.Minimize(cp.sum(r_np * w))
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
-            kernel_consts = get_kernel_constraints(w, p_t_np, pi_np, self.Psi_np)
+            kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -301,9 +301,9 @@ class DualKCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
+        lr: float = 3e-2,
         n_steps: int = 50,
         batch_size: int = 1024,
-        lr: float = 3e-2,
         seed: int = 0,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
@@ -399,8 +399,8 @@ class GPKCMCEstimator(BaseEstimator):
 
     Args:
         const_type: Type of the constraint used. It must be one of "box", "KL", "inverse_KL",
-            "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared", "Neyman_chi_squared",
-            and "total_variation".
+            "squared_Hellinger", "Pearson_chi_squared", "Neyman_chi_squared", and
+            "total_variation".
         gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
             When gamma == 0.0, GP-KCMC estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.

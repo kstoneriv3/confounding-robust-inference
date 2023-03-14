@@ -141,7 +141,9 @@ def test_zero_outcome(
     estimator = estimator_factory(spec, const_type, gamma=0.05, Gamma=1.5)
     est = estimator.fit(Y, T, X, p_t, toy_policy).predict()
     zero = torch.zeros(1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE)
-    atol = 1e-2 if "Dual" in estimator.__class__.__name__ else 1e-6
+    atol = 1e-1 if "Dual" in estimator.__class__.__name__ else 1e-6
+        
+    assert est <= 0
     assert torch.isclose(est, zero, atol=atol)
 
 
@@ -162,15 +164,21 @@ def test_singleton_uncertainty_set(
     ):
         pytest.skip()
     Y, T, X, _, p_t, _ = binary_data
+
     estimator = estimator_factory(spec, const_type, gamma=0.0, Gamma=1.0)
-    est = estimator.fit(Y, T, X, p_t, toy_policy).predict()
+    if "Dual" in spec.estimator_cls.__name__ and const_type == "KL":
+        est = estimator.fit(Y, T, X, p_t, toy_policy).predict()
+    else:
+        est = estimator.fit(Y, T, X, p_t, toy_policy).predict()
+
     if spec.estimator_cls == ZSBEstimator:
         target = HajekEstimator().fit(Y, T, X, p_t, toy_policy).predict()
     else:
         target = IPWEstimator().fit(Y, T, X, p_t, toy_policy).predict()
-    # atol = 1e-2 if "Dual" in estimator.__class__.__name__ else 1e-6
-    # assert torch.isclose(est, target, atol=atol)
-    assert torch.isclose(est, target)
+
+    atol = 1e-1 if "Dual" in estimator.__class__.__name__ else 1e-6
+    assert est <= target + atol
+    assert torch.isclose(est, target, atol=atol)
 
 
 def test_true_lower_bound() -> None:

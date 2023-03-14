@@ -67,12 +67,11 @@ def get_qb_constraint(
 def get_kernel_constraints(
     w: cp.Variable,
     p_t: np.ndarray,
-    pi: np.ndarray,
     Psi: np.ndarray,
 ) -> List[cp.Constraint]:
     # Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     # Numpy's broadcasting MATCHES THE LOWER DIMENSIONS and assume shape 1 at higher dimensions.
-    return [(Psi.T * pi) @ w == (Psi.T * pi) @ (1 / p_t)]
+    return [(Psi.T * p_t) @ w == Psi.T @ np.ones_like(p_t)]
 
 
 def get_gp_constraints(

@@ -14,7 +14,7 @@ from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensors
 F_DIVERGENCES = [
     "KL",
     "inverse_KL",
-    "Jensen_Shannon",
+    # "Jensen_Shannon",  # Unfortunately, CVXPY does not recognize it as convex
     "squared_Hellinger",
     "Pearson_chi_squared",
     "Neyman_chi_squared",
@@ -26,7 +26,6 @@ CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
 # Some of the f_conjugate have limited domain, which makes it difficult to fit with dual problem.
 DUAL_FEASIBLE_CONSTRAINT_TYPES = [
     "KL",
-    "inverse_KL",
     "Pearson_chi_squared",
     "Tan_box",
     "lr_box",
@@ -35,14 +34,8 @@ DUAL_FEASIBLE_CONSTRAINT_TYPES = [
 CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
     "KL": lambda u: -cp.entr(u),
     "inverse_KL": lambda u: -cp.log(u),
-    # "Jensen_Shannon": lambda u: (
-    #     - 0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.) + 0.5 * u * cp.log(u)
-    # ),
-    # "Jensen_Shannon": lambda u: (
-    #     0.5 * cp.entr(u + 1) + 0.5 * (u + 1) * np.log(2.0) - 0.5 * cp.entr(u)
-    # ),
     "Jensen_Shannon": lambda u: (
-        np.log(2.0) * (u + 1) - u * cp.log(1 + cp.inv_pos(u)) - cp.log(u + 1)
+        -0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.0) + 0.5 * u * cp.log(u)
     ),
     "squared_Hellinger": lambda u: u - 2 * cp.sqrt(u) + 1,
     "Pearson_chi_squared": lambda u: cp.square(u) - 1,
@@ -174,7 +167,7 @@ def get_a_b(p_t: np.ndarray, Gamma: float, const_type: str) -> tuple[np.ndarray,
     # Likelihood ratio constraints 1 / Gamma <= p_t / pi <= Gamma.
     elif const_type == "lr_box":
         a = (1 / Gamma) * (1 / p_t)
-        b = (1 / Gamma) * (1 / p_t)
+        b = Gamma * (1 / p_t)
     else:
         raise ValueError('A valid const_type is either "tan_box" or "lr_box"')
     return a, b

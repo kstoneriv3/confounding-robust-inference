@@ -50,9 +50,9 @@ class DualNCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
+        lr: float = 3e-2,
         n_steps: int = 50,
         batch_size: int = 1024,
-        lr: float = 3e-2,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
         pi = policy.prob(T, X)
