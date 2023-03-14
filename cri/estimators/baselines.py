@@ -78,9 +78,13 @@ class ZSBEstimator(BaseEstimator):
             by Tan (2006).
     """
 
-    def __init__(self, Gamma: float, use_fractional_programming: bool = True) -> None:
+    def __init__(
+        self, const_type: str, Gamma: float, use_fractional_programming: bool = True
+    ) -> None:
         assert Gamma >= 1
+        assert const_type in ["Tan_box", "lr_box"]
         self.Gamma = Gamma
+        self.const_type = const_type
         self.use_fractional_programming = use_fractional_programming
 
     def fit(
@@ -117,9 +121,11 @@ class ZSBEstimator(BaseEstimator):
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
             constraints.extend(get_hajek_constraints(w, T_np, p_t_np))
             if self.use_fractional_programming:
-                constraints.extend(get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma, "Tan_box"))
+                constraints.extend(
+                    get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)
+                )
             else:
-                constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, "Tan_box"))
+                constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
 
             problem = cp.Problem(objective, constraints)
             problem.solve()
@@ -160,12 +166,12 @@ class QBEstimator(BaseEstimator):
         D: int = 30,
         kernel: Kernel | None = None,
     ) -> None:
-        assert Gamma >= 1
         assert const_type in ["Tan_box", "lr_box"]
+        assert Gamma >= 1
+        self.const_type = const_type
         self.Gamma = Gamma
         self.D = D
         self.kernel = kernel
-        self.const_type = const_type
 
     def fit(
         self,

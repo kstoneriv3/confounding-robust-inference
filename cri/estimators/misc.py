@@ -21,11 +21,29 @@ F_DIVERGENCES = [
     "total_variation",
 ]
 
+CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
+
+# Some of the f_conjugate have limited domain, which makes it difficult to fit with dual problem.
+DUAL_FEASIBLE_CONSTRAINT_TYPES = [
+    "KL",
+    "inverse_KL",
+    "Pearson_chi_squared",
+    "Tan_box",
+    "lr_box",
+]
+
 CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
     "KL": lambda u: -cp.entr(u),
     "inverse_KL": lambda u: -cp.log(u),
-    #'Jensen_Shannon': lambda u: -(u + 1) * cp.log(u + 1) + (u + 1) * np.log(2.) + u * cp.log(u)
-    "Jensen_Shannon": lambda u: cp.entr(u + 1) + (u + 1) * np.log(2.0) - cp.entr(u),
+    # "Jensen_Shannon": lambda u: (
+    #     - 0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.) + 0.5 * u * cp.log(u)
+    # ),
+    # "Jensen_Shannon": lambda u: (
+    #     0.5 * cp.entr(u + 1) + 0.5 * (u + 1) * np.log(2.0) - 0.5 * cp.entr(u)
+    # ),
+    "Jensen_Shannon": lambda u: (
+        np.log(2.0) * (u + 1) - u * cp.log(1 + cp.inv_pos(u)) - cp.log(u + 1)
+    ),
     "squared_Hellinger": lambda u: u - 2 * cp.sqrt(u) + 1,
     "Pearson_chi_squared": lambda u: cp.square(u) - 1,
     "Neyman_chi_squared": lambda u: cp.inv_pos(u) - 1,

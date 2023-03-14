@@ -20,17 +20,15 @@ from cri.estimators.constraints import (
     get_kernel_constraints,
 )
 from cri.estimators.misc import (
-    _DEFAULT_TORCH_FLOAT_DTYPE,
-    F_DIVERGENCES,
+    CONSTRAINT_TYPES,
+    DUAL_FEASIBLE_CONSTRAINT_TYPES,
     OrthogonalBasis,
     assert_input,
     get_dual_objective,
     select_kernel,
 )
 from cri.policies import BasePolicy
-from cri.utils.types import as_ndarrays, as_tensor
-
-CONSTRAINT_TYPES = F_DIVERGENCES + ["Tan_box", "lr_box"]
+from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
 
 
 class KCMCEstimator(BaseEstimator):
@@ -59,6 +57,9 @@ class KCMCEstimator(BaseEstimator):
         assert const_type in CONSTRAINT_TYPES
         if "box" in const_type:
             assert Gamma is not None and Gamma >= 1
+            # For box constraint, it is convenient to assume gamma = 0.0, as eta_f -> +0
+            # in the dual problem.
+            gamma = 0.0
         else:
             assert gamma is not None and gamma >= 0
         self.const_type = const_type
@@ -260,8 +261,7 @@ class DualKCMCEstimator(BaseEstimator):
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
-            "inverse_KL", "Jensen_Shannon", "squared_Hellinger", "Pearson_chi_squared",
-            "Neyman_chi_squared", and "total_variation".
+            "inverse_KL", "Pearson_chi_squared".
         gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
             When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
@@ -278,9 +278,12 @@ class DualKCMCEstimator(BaseEstimator):
         D: int = 30,
         kernel: Kernel | None = None,
     ) -> None:
-        assert const_type in CONSTRAINT_TYPES
+        assert const_type in DUAL_FEASIBLE_CONSTRAINT_TYPES, f"{const_type} is not supported."
         if "box" in const_type:
             assert Gamma is not None and Gamma >= 1
+            # For box constraint, it is convenient to assume gamma = 0.0, as eta_f -> +0
+            # in the dual problem.
+            gamma = 0.0
         else:
             assert gamma is not None and gamma >= 0
         self.const_type = const_type
@@ -301,6 +304,7 @@ class DualKCMCEstimator(BaseEstimator):
         n_steps: int = 50,
         batch_size: int = 1024,
         lr: float = 3e-2,
+        seed: int = 0,
     ) -> "BaseEstimator":
         assert_input(Y, T, X, p_t)
         self.Y = Y
@@ -309,6 +313,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.p_t = p_t
         self.policy = policy
         self.pi = policy.prob(T, X)
+        np.random.seed(seed)
 
         n = T.shape[0]
         batch_size = min(n, batch_size)
@@ -322,7 +327,7 @@ class DualKCMCEstimator(BaseEstimator):
 
         optimizer = SGD(params=[self.eta_kcmc, self.log_eta_f], lr=lr)
         for i in range(n_steps):
-            train_idx = torch.as_tensor(np.random.choice(n, batch_size))
+            train_idx = torch.randint(n, (batch_size,))
             eta_cmc = (
                 as_tensor(self.Psi_np)[train_idx]
                 @ self.eta_kcmc
