@@ -214,7 +214,7 @@ class QBEstimator(BaseEstimator):
             )
 
             problem = cp.Problem(objective, constraints)
-            problem.solve(solver=cp.MOSEK)  # ECOS and OSCP, SCS fails when Y is constant.
+            problem.solve()
 
         if problem.status != "optimal":
             raise ValueError(

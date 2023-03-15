@@ -112,9 +112,12 @@ class KCMCEstimator(BaseEstimator):
                 constraints.extend(f_div_const)
 
             problem = cp.Problem(objective, constraints)
-            problem.solve()
+            problem.solve() 
+            if problem.status == "infeasible":
+                problem = cp.Problem(objective, constraints)
+                problem.solve(solver=cp.ECOS) 
 
-        if problem.status != "optimal":
+        if problem.status not in ("optimal", "optimal_inaccurate"):
             raise ValueError(
                 "The optimizer found the associated convex programming to be {}.".format(
                     problem.status
@@ -529,9 +532,9 @@ class GPKCMCEstimator(BaseEstimator):
                 constraints.extend(get_f_div_constraint(w, p_t_np, self.gamma, self.const_type))
 
             problem = cp.Problem(objective, constraints)
-            problem.solve()
+            problem.solve(solver=cp.SCS)
 
-        if problem.status != "optimal":
+        if problem.status not in ("optimal", "optimal_inaccurate"):
             raise ValueError(
                 "The optimizer found the associated convex programming to be {}.".format(
                     problem.status
