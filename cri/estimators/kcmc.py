@@ -112,10 +112,10 @@ class KCMCEstimator(BaseEstimator):
                 constraints.extend(f_div_const)
 
             problem = cp.Problem(objective, constraints)
-            problem.solve() 
+            problem.solve()
             if problem.status == "infeasible":
                 problem = cp.Problem(objective, constraints)
-                problem.solve(solver=cp.ECOS) 
+                problem.solve(solver=cp.ECOS)
 
         if problem.status not in ("optimal", "optimal_inaccurate"):
             raise ValueError(
@@ -356,11 +356,17 @@ class DualKCMCEstimator(BaseEstimator):
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
             with torch.no_grad():
+                eta_cmc = (
+                    as_tensor(self.Psi_np)[val_idx]
+                    @ self.eta_kcmc
+                    * self.pi[val_idx]
+                    / self.p_t[val_idx]
+                )
                 lower_bounds[val_idx] = get_dual_objective(
                     self.Y[val_idx],
                     self.p_t[val_idx],
                     self.pi[val_idx],
-                    eta_cmc[train_idx],
+                    eta_cmc,
                     self.eta_f,
                     self.gamma,
                     self.Gamma,

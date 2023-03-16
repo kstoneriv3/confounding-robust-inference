@@ -53,6 +53,10 @@ TORCH_F_DIV_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "total_variation": lambda u: 0.5 * torch.abs(u - 1),
 }
 
+# See
+# - https://arxiv.org/abs/1606.00709
+# - http://www.stat.yale.edu/~yw562/teaching/598/lec06.pdf
+# - https://en.wikipedia.org/wiki/F-divergence
 TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "KL": lambda v: torch.exp(v - 1),
     "inverse_KL": lambda v: -1 - torch.log(-v),
@@ -98,10 +102,6 @@ def get_f_conjugate(
             return torch.where(v < 0.0, a_w_tilde * v, b_w_tilde * v)
 
     else:
-        # See
-        # - https://arxiv.org/abs/1606.00709
-        # - http://www.stat.yale.edu/~yw562/teaching/598/lec06.pdf
-        # - https://en.wikipedia.org/wiki/F-divergence
         f_conj = TORCH_F_DIV_CONJUGATE_FUNCTIONS[const_type]
     return f_conj
 
