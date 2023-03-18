@@ -4,8 +4,7 @@ import cvxpy as cp
 import numpy as np
 import torch
 from sklearn.decomposition import KernelPCA
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
+from sklearn.gaussian_process.kernels import RBF, DotProduct, Kernel
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
@@ -70,6 +69,10 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
     "total_variation": lambda v: torch.where(torch.abs(v) <= 0.5 + EPS, v, torch.inf),
 }
 
+DEFAULT_KERNEL = 0.8 * DotProduct(0.0, sigma_0_bounds="fixed") + 0.4 * RBF(
+    0.3, length_scale_bounds="fixed"
+)
+
 
 def get_dual_objective(
     Y: torch.Tensor,
@@ -129,22 +132,6 @@ class OrthogonalBasis:
 
     def fit_transform(self, X: np.ndarray) -> np.ndarray:
         return self.pipeline.fit_transform(X)
-
-
-def select_kernel(
-    Y: np.ndarray,
-    T: np.ndarray,
-    X: np.ndarray,
-) -> Kernel:
-    """Learn the kernel parameters by fitting Gaussian process regression of Y on (T, X)."""
-    Y = Y - Y.mean()  # It is OK to demean Y, as Psi contains intercept term (constant feature).
-    TX = np.concatenate([T[:, None], X], axis=1)
-    TX = StandardScaler().fit_transform(TX)
-    kernel = WhiteKernel() + ConstantKernel() * RBF()
-    # As GP gets slower for large sample size, we truncate data by n=1000.
-    model = GaussianProcessRegressor(kernel=kernel).fit(TX[:1000], Y[:1000])
-    # Omit the while kernel part (model.kernel_.k1), which is the observation noise.
-    return model.kernel_.k2
 
 
 def normalize_p_t(p_t: torch.Tensor, T: torch.Tensor) -> torch.Tensor:

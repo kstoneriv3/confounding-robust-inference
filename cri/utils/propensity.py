@@ -5,11 +5,12 @@ import torch
 from scipy.stats import norm
 from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
+from sklearn.gaussian_process.kernels import WhiteKernel
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 from statsmodels.othermod.betareg import BetaModel
 
+from cri.estimators.misc import DEFAULT_KERNEL
 from cri.utils.types import as_ndarrays, as_tensors
 
 
@@ -45,7 +46,7 @@ def estimate_p_t_continuous(T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     assert len(T.shape) == 1 and len(X.shape) == 2
     X_np, T_np = as_ndarrays(X, T)
     X_np = StandardScaler().fit_transform(X_np)
-    kernel = WhiteKernel() + ConstantKernel() * RBF()
+    kernel = WhiteKernel() + DEFAULT_KERNEL
     model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
     model.fit(X_np[:1000], T_np[:1000])  # GP is slow for large sample size so truncate at n = 1000.
     t_mean, t_std = model.predict(X_np, return_std=True)

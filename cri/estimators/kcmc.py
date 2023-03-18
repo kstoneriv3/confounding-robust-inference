@@ -7,7 +7,7 @@ import torch
 from scipy.linalg import eigh
 from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
+from sklearn.gaussian_process.kernels import Kernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler
 from torch.autograd.functional import hessian, jacobian
 from torch.optim import SGD, Optimizer
@@ -22,11 +22,11 @@ from cri.estimators.constraints import (
 )
 from cri.estimators.misc import (
     CONSTRAINT_TYPES,
+    DEFAULT_KERNEL,
     DUAL_FEASIBLE_CONSTRAINT_TYPES,
     OrthogonalBasis,
     assert_input,
     get_dual_objective,
-    select_kernel,
 )
 from cri.policies import BasePolicy
 from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
@@ -117,7 +117,7 @@ class KCMCEstimator(BaseEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
@@ -183,7 +183,7 @@ class KCMCEstimator(BaseEstimator):
         scores = self._get_dual_jacobian()
         V = scores.T @ scores / n
         J = self._get_dual_hessian()
-        J_inv = torch.pinv(J)
+        J_inv = torch.pinverse(J)
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
         return gic
 
@@ -259,7 +259,7 @@ class KCMCEstimator(BaseEstimator):
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
-            kernel = WhiteKernel() + ConstantKernel() * RBF()
+            kernel = WhiteKernel() + self.kernel
             model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
             model.fit(TX_np[:1000], Y_np[:1000])
             y_mean, y_std = model.predict(TX_np, return_std=True)
@@ -274,7 +274,7 @@ class KCMCEstimator(BaseEstimator):
         return H
 
     def _get_dual_jacobian(self) -> torch.Tensor:
-        eta = torch.tensor(self.eta.data, requires_grad=True)
+        eta = self.eta.clone().detach().requires_grad_(True)
         H = jacobian(lambda eta: self._get_fitted_dual_loss(eta), eta)  # type: ignore
         return H
 
@@ -345,7 +345,7 @@ class DualKCMCEstimator(BaseEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
@@ -441,8 +441,8 @@ class GPKCMCEstimator(BaseEstimator):
 
 
     Here, as low-rank GP is equivalent to Bayesian ridge regression with design matrix
-    :math:`\\Psi_{n,d}=\psi_d(t_n, x_n)`. Thus, we use the following model with
-    :math:`\\sigma^2` estimated by empirical Bayes\:
+    :math:`\\Psi_{n,d}=\\psi_d(t_n, x_n)`. Thus, we use the following model with
+    :math:`\\sigma^2` estimated by empirical Bayes as
 
     .. math::
        :nowrap:
@@ -450,7 +450,7 @@ class GPKCMCEstimator(BaseEstimator):
        \\begin{eqnarray}
           \\beta &\\sim N(0, I_d), \\\\
           e &= \\Psi \\beta + \\varepsilon, \\\\
-          \\varepsilon &\sim N(0, \sigma^2 I_n). \\\\
+          \\varepsilon &\\sim N(0, \\sigma^2 I_n). \\\\
        \\end{eqnarray}
 
     For this model, the posterior and the credible set (highest posterior density set) of
@@ -472,13 +472,13 @@ class GPKCMCEstimator(BaseEstimator):
           \\mathrm{CI}_{\\beta|e}(1 - \\alpha) =
           \\{\\beta:
               (\\beta - \\mu_{\\beta|e})^T \\Sigma_{\\beta|e}^{-1} (\\beta - \\mu_{\\beta|e})
-              \\leq \chi^2_d(1 - \\alpha)
+              \\leq \\chi^2_d(1 - \\alpha)
           \\},
        \\end{eqnarray}
 
     where :math:`\\mu_\\beta=(\\Psi^T\\Psi+\\sigma^2I_d)^{-1}\\Psi^Te`
     and :math:`\\Sigma_\\beta=(\\Psi^T\\Psi+\\sigma^2I_d)^{-1}`. Therefore, the condition 
-    :math:`0_d\\in \mathrm{CI}_{\\beta|e}(1 - \\alpha)` can be written as
+    :math:`0_d\\in \\mathrm{CI}_{\\beta|e}(1 - \\alpha)` can be written as
 
     .. math::
        :nowrap:
@@ -486,7 +486,7 @@ class GPKCMCEstimator(BaseEstimator):
        \\begin{equation}
           \\mu_{\\beta|e}^T \\Sigma_{\\beta|e}^{-1} \\mu_{\\beta|e}
           = e^T \\Psi (\\Psi^T\\Psi + \\sigma^2I_d)^{-1} \\Psi^Te
-          \\leq \chi^2_d(1 - \\alpha).
+          \\leq \\chi^2_d(1 - \\alpha).
        \\end{equation}
     """
 
@@ -536,7 +536,7 @@ class GPKCMCEstimator(BaseEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
 

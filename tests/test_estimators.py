@@ -95,6 +95,10 @@ DATA = {
     "binary": SyntheticDataBinary().sample(N_SAMPLES),
     "continuous": SyntheticDataContinuous().sample(N_SAMPLES),
 }
+DATA_LARGE = {
+    "binary": SyntheticDataBinary().sample(2 * N_SAMPLES),
+    "continuous": SyntheticDataContinuous().sample(2 * N_SAMPLES),
+}
 POLICIES = {
     "binary": LogisticPolicy(BETA),
     "continuous": GaussianPolicy(BETA),
@@ -315,7 +319,7 @@ def test_kcmc_dimensions(
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
-    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (4, 10, 20)
+    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (4, 10, 25)
     estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
     est_d1 = estimator.fit(Y, T, X, p_t, policy).predict()
     estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
@@ -326,10 +330,40 @@ def test_kcmc_dimensions(
     assert est_d1 <= est_d2 <= est_d3
 
 
-def test_gic() -> None:
-    # GIC < lower bound estimator
-    # GIC(D=n) < GIC(D=appropriate)
-    pass
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+def test_gic(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
+    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
+
+    # Underfit
+    estimator = KCMCEstimator(const_type, Gamma=1.5, D=1)
+    estimator.fit(Y, T, X, p_t, policy)
+    est_under = estimator.predict()
+    gic_under = estimator.predict_gic()
+    assert gic_under <= est_under
+    # Maybe appropriate
+    # D_opt = 10 if data_and_policy_type == "binary" else 3
+    D_opt = 10 if data_and_policy_type == "binary" else 3
+    estimator = KCMCEstimator(const_type, Gamma=1.5, D=D_opt)
+    estimator.fit(Y, T, X, p_t, policy)
+    est_opt = estimator.predict()
+    gic_opt = estimator.predict_gic()
+    assert gic_opt <= est_opt
+    # Overfit
+    estimator = KCMCEstimator(const_type, Gamma=1.5, D=15)
+    estimator.fit(Y, T, X, p_t, policy)
+    est_over = estimator.predict()
+    gic_over = estimator.predict_gic()
+    assert gic_over <= est_over
+
+    assert gic_under <= gic_opt
+    assert gic_over <= gic_opt
 
 
 def test_ci() -> None:
