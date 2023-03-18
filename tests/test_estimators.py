@@ -303,7 +303,7 @@ def test_jacobian(data_and_policy_type: str) -> None:
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
 @pytest.mark.parametrize("spec", ESTIMATOR_SPECS, ids=ESTIMATOR_NAMES)
-def test_constraints_dimensions(
+def test_kcmc_dimensions(
     data_and_policy_type: str,
     spec: EstimatorSpec,
     const_type: str,
