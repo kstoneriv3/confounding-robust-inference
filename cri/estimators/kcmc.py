@@ -91,7 +91,7 @@ class KCMCEstimator(BaseEstimator):
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np) / p_t_np[:, None] # this makes it harder somehow...
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -101,21 +101,20 @@ class KCMCEstimator(BaseEstimator):
 
             objective = cp.Minimize(cp.sum(r_np * w))
 
-            constraints: list[cp.Constraint] = [np.zeros(n) <= w]
+            constraints: list[cp.Constraint] = [np.zeros(n) <= w] 
+            # constraints: list[cp.Constraint] = [np.zeros(n) <= w, w == 1 / p_t_np]  # TODO
             kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
-                pass
             else:
                 f_div_const = get_f_div_constraint(w, p_t_np, self.gamma, self.const_type)
                 constraints.extend(f_div_const)
 
             problem = cp.Problem(objective, constraints)
-            problem.solve()
-            if problem.status == "infeasible":
-                problem = cp.Problem(objective, constraints)
-                problem.solve(solver=cp.ECOS)
+            solvers = [cp.ECOS, cp.SCS]  # Available solvers can be check cp.installed_solvers()
+            self.try_solvers(problem, solvers)
+            # problem.solve(solver=cp.ECOS, max_iters=1000, abstol=1e-12) #, verbose=True)  # TODO
 
         if problem.status not in ("optimal", "optimal_inaccurate"):
             raise ValueError(
@@ -126,12 +125,44 @@ class KCMCEstimator(BaseEstimator):
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
+
+        def func(x):
+            z = p_t * (self.w + x * r)
+            return float(torch.sum(z ** 2 - 1).data)
+
+        from scipy.optimize import minimize_scalar
+        res = minimize_scalar(lambda x: func(x) ** 2, [-1, 1], method="Golden", tol=1e-14)
+        print(func(0))
+        print(func(res.x))
+        print(res.x)
+        
+            
+        print(problem.status)  # TODO
+        print(torch.sum((self.w * p_t) ** 2 - 1) / p_t.shape[0])  # TODO
+        print(torch.mean(self.w * r))
+        print(torch.mean(p_t * (self.w + res.x * r)))
+
+        eps = 5e-2
+        print(torch.mean(self.w * (p_t < eps) * r + 1 / p_t * (p_t >= eps) * r))  # close to the solution
+        print(torch.mean(self.w * (p_t >= eps) * r + 1 / p_t * (p_t < eps) * r))  # far from the solution
+
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
-        self.eta_kcmc = as_tensor(kernel_consts[0].dual_value)  # need to match sign!
+        self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
         self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
         return self
+
+    @staticmethod  # maybe make it a standalone function
+    def try_solvers(problem: cp.Problem, solvers: list[str]):
+        for solver in solvers:
+            try:
+                problem.solve(solver=solver) #, verbose=True)
+            except cp.error.SolverError:
+                pass
+            if problem.status == "optimal":
+                break
+        print(solver)
 
     def predict(self) -> torch.Tensor:
         return self.fitted_lower_bound
@@ -147,9 +178,9 @@ class KCMCEstimator(BaseEstimator):
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
         pi = policy.prob(T, X)
-        T_np, X_np = as_ndarrays(T, X)
+        T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.transform(TX_np)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np) / p_t_np[:, None]
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
@@ -326,7 +357,7 @@ class DualKCMCEstimator(BaseEstimator):
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np) / p_t_np[:, None]
 
         optimizer = SGD(params=[self.eta_kcmc, self.log_eta_f], lr=lr)
         for i in range(n_steps):
@@ -388,9 +419,9 @@ class DualKCMCEstimator(BaseEstimator):
     ) -> torch.Tensor:
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
-        T_np, X_np = as_ndarrays(T, X)
+        T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.transform(TX_np)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np) / p_t_np[:, None]
         pi = policy.prob(T, X)
         eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
