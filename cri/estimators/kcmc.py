@@ -1,5 +1,5 @@
-from typing import Any, Type
 import warnings
+from typing import Any, Type
 
 import cvxpy as cp
 import numpy as np
@@ -356,16 +356,11 @@ class DualKCMCEstimator(BaseEstimator):
         }
         if optimizer_kwargs:
             kwargs.update(optimizer_kwargs)
-        optimizer = optimizer_cls(**kwargs)
+        optimizer = optimizer_cls(**kwargs)  # type: ignore
 
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
-            eta_cmc = (
-                as_tensor(self.Psi_np)[train_idx]
-                @ self.eta_kcmc
-                * self.pi[train_idx]
-                / self.p_t[train_idx]
-            )
+            eta_cmc = as_tensor(self.Psi_np)[train_idx] @ self.eta_kcmc
             objective = -get_dual_objective(
                 self.Y[train_idx],
                 self.p_t[train_idx],
@@ -385,12 +380,7 @@ class DualKCMCEstimator(BaseEstimator):
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
             with torch.no_grad():
-                eta_cmc = (
-                    as_tensor(self.Psi_np)[val_idx]
-                    @ self.eta_kcmc
-                    * self.pi[val_idx]
-                    / self.p_t[val_idx]
-                )
+                eta_cmc = as_tensor(self.Psi_np)[val_idx] @ self.eta_kcmc
                 lower_bounds[val_idx] = get_dual_objective(
                     self.Y[val_idx],
                     self.p_t[val_idx],
@@ -422,7 +412,7 @@ class DualKCMCEstimator(BaseEstimator):
         Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         Psi_np = apply_black_magic(Psi_np, p_t_np)
         pi = policy.prob(T, X)
-        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc * pi / p_t
+        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )

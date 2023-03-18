@@ -1,4 +1,5 @@
 from typing import Any, Type
+
 import torch
 from torch.optim import SGD, Optimizer
 
@@ -70,7 +71,7 @@ class DualNCMCEstimator(BaseEstimator):
         }
         if optimizer_kwargs:
             kwargs.update(optimizer_kwargs)
-        optimizer = optimizer_cls(**kwargs)
+        optimizer = optimizer_cls(**kwargs)  # type: ignore
 
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
