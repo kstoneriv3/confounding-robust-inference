@@ -31,6 +31,7 @@ DUAL_FEASIBLE_CONSTRAINT_TYPES = [
     "lr_box",
 ]
 
+EPS = 1e-5
 CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
     "KL": lambda u: -cp.entr(u),
     "inverse_KL": lambda u: -cp.log(u),
@@ -61,14 +62,12 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
     "KL": lambda v: torch.exp(v - 1),
     "inverse_KL": lambda v: -1 - torch.log(-v),
     "Jensen_Shannon": lambda v: torch.where(
-        v < torch.log(torch.as_tensor(2.0)), -torch.log(2 - torch.exp(v)), torch.inf
+        v < torch.log(torch.as_tensor(2.0)) + EPS, -torch.log(2 - torch.exp(v)), torch.inf
     ),
-    "squared_Hellinger": lambda v: torch.where(v < 1.0, v / (1 - v), torch.inf),
+    "squared_Hellinger": lambda v: torch.where(v < 1.0 + EPS, v / (1 - v), torch.inf),
     "Pearson_chi_squared": lambda v: v**2 / 4.0 + v,
-    "Neyman_chi_squared": lambda v: torch.where(
-        v <= 0.0, -2 * torch.sqrt(-v) + 1, torch.inf
-    ),
-    "total_variation": lambda v: torch.where(torch.abs(v) < 0.5, v, torch.inf),
+    "Neyman_chi_squared": lambda v: torch.where(v <= 0.0 + EPS, -2 * torch.sqrt(-v) + 1, torch.inf),
+    "total_variation": lambda v: torch.where(torch.abs(v) <= 0.5 + EPS, v, torch.inf),
 }
 
 
@@ -84,8 +83,6 @@ def get_dual_objective(
 ) -> torch.Tensor:
     f_conj = get_f_conjugate(p_t, Gamma, const_type)
     dual = -gamma * eta_f + eta_cmc - eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)
-    # TODO
-    print(list(map(torch.mean, (-gamma * eta_f, eta_cmc, -eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)))))
     return dual
 
 
