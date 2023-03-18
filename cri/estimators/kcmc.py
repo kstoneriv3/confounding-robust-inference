@@ -113,11 +113,11 @@ class KCMCEstimator(BaseEstimator):
                 constraints.extend(f_div_const)
 
             problem = cp.Problem(objective, constraints)
-            solvers = [cp.ECOS, cp.SCS]  # Available solvers can be check cp.installed_solvers()
+            solvers = [cp.ECOS, cp.SCS, cp.MOSEK]
             self.try_solvers(problem, solvers)
             # problem.solve(solver=cp.ECOS, max_iters=1000, abstol=1e-12) #, verbose=True)  # TODO
 
-        if problem.status not in ("optimal", "optimal_inaccurate"):
+        if problem.status != "optimal":
             raise ValueError(
                 "The optimizer found the associated convex programming to be {}.".format(
                     problem.status
@@ -166,7 +166,8 @@ class KCMCEstimator(BaseEstimator):
 
     @staticmethod  # maybe make it a standalone function
     def try_solvers(problem: cp.Problem, solvers: list[str]):
-        for solver in solvers:
+        installed_solvers = [sol for sol in solvers if sol in cp.installed_solvers()]
+        for solver in installed_solvers:
             try:
                 problem.solve(solver=solver) #, verbose=True)
             except cp.error.SolverError:
