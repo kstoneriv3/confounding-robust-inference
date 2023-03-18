@@ -203,7 +203,7 @@ class QBEstimator(BaseEstimator):
 
             w = cp.Variable(n)
 
-            objective = cp.Minimize(cp.sum(r_np * w))
+            objective = cp.Minimize(r_np.T @ w)
 
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
             constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))

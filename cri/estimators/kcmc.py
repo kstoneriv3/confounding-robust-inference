@@ -99,10 +99,11 @@ class KCMCEstimator(BaseEstimator):
 
             w = cp.Variable(n)
 
-            objective = cp.Minimize(cp.sum(r_np * w))
+            objective = cp.Minimize(r_np.T @ w)
 
-            constraints: list[cp.Constraint] = [np.zeros(n) <= w] 
+            # constraints: list[cp.Constraint] = [np.zeros(n) <= w] 
             # constraints: list[cp.Constraint] = [np.zeros(n) <= w, w == 1 / p_t_np]  # TODO
+            constraints: list[cp.Constraint] = [np.zeros(n) <= w, cp.sum(np.multiply(p_t, w)) == n]  # TODO
             kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
@@ -132,11 +133,29 @@ class KCMCEstimator(BaseEstimator):
 
        # The solution is very inaccurate for p_t >= eps!
         eps = 5e-2
+        print("Solutions")
         print(torch.mean(self.w * (p_t < eps) * r + 1 / p_t * (p_t >= eps) * r))  # close to the solution
         print(torch.mean(self.w * (p_t >= eps) * r + 1 / p_t * (p_t < eps) * r))  # far from the solution
 
-        print(torch.mean((r * (self.w - 1 / p_t) * (p_t < eps))**))
-        print(torch.mean((r * (self.w - 1 / p_t) * (p_t >= eps))**))
+        print("Accuracy in objective norm")
+        print(torch.mean((r * (self.w - 1 / p_t) * (p_t < eps)) ** 2))
+        print(torch.mean((r * (self.w - 1 / p_t) * (p_t >= eps)) ** 2))
+
+        print("Objective norm")
+        print(torch.mean(r ** 2 * (p_t < eps)))
+        print(torch.mean(r ** 2 * (p_t >= eps)))
+
+        print("Count")
+        print(torch.sum(p_t < eps))
+        print(torch.sum(p_t >= eps))
+
+        print("Y")
+        print(Y[p_t < eps])
+        print(Y[p_t >= eps])
+
+        print("pi")
+        print(self.pi[p_t < eps])
+        print(self.pi[p_t >= eps])
 
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
@@ -549,7 +568,7 @@ class GPKCMCEstimator(BaseEstimator):
 
             w = cp.Variable(n)
 
-            objective = cp.Minimize(cp.sum(r_np * w))
+            objective = cp.Minimize(r_np.T @ w)
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             constraints.extend(
