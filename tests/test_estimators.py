@@ -159,8 +159,10 @@ def test_zero_outcome(
     assert torch.isclose(est, zero, atol=atol) or is_dual_estimator
     # Refit Dual estimator if the learning parameters are not appropriate.
     if not torch.isclose(est, zero, atol=atol):
+        optimizer_kwargs = {"lr": 5e-2}
         estimator = estimator_factory(spec, const_type, gamma=0.0, Gamma=1.0)
-        est = estimator.fit(Y, T, X, p_t, policy, lr=5e-2, n_steps=100).predict()  # type: ignore
+        estimator.fit(Y, T, X, p_t, policy, optimizer_kwargs=optimizer_kwargs, n_steps=100)
+        est = estimator.predict()  # type: ignore KCMC KL binary
         assert est <= 0
         assert torch.isclose(est, zero, atol=3e-1)
 
@@ -199,16 +201,26 @@ def test_singleton_uncertainty_set(
     # Refit Dual estimator if the learning parameters are not appropriate.
     if not torch.isclose(est, target, atol=atol) and is_dual_estimator:
         if (
-            isinstance(estimator, DualKCMCEstimator)
-            and const_type == "KL"
-            and data_and_policy_type == "continuous"
+            const_type=="KL"
+            # isinstance(estimator, DualKCMCEstimator)
+            # and const_type == "KL"
+            # and data_and_policy_type == "continuous"
         ):
             # TODO: DualKCMCEstimator-KL-continous case is somehow broken."
+            optimizer_kwargs = {"lr": 3e-2}
+            estimator = estimator_factory(spec, const_type, gamma=0.0, Gamma=1.0)
+            # est = estimator.fit(Y, T, X, p_t, policy, lr=2e-2, n_steps=300).predict()  # type: ignore KCMC KL continuous
+            estimator.fit(Y, T, X, p_t, policy, optimizer_kwargs=optimizer_kwargs, n_steps=300)
+            est = estimator.predict()  # type: ignore KCMC KL binary
+            assert est <= target
+            assert torch.isclose(est, target, atol=0.1)  # rtol=0.9)
             pytest.skip()
+        optimizer_kwargs = {"lr": 5e-2}
         estimator = estimator_factory(spec, const_type, gamma=0.0, Gamma=1.0)
-        est = estimator.fit(Y, T, X, p_t, policy, lr=2e-2, n_steps=300).predict()  # type: ignore
+        estimator.fit(Y, T, X, p_t, policy, optimizer_kwargs=optimizer_kwargs, n_steps=200)
+        est = estimator.predict()  # type: ignore KCMC KL binary
         assert est <= target
-        assert torch.isclose(est, target, rtol=0.9)
+        assert torch.isclose(est, target, atol=atol)  # rtol=0.9)
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])

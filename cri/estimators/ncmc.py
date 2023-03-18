@@ -1,5 +1,6 @@
+from typing import Any, Type
 import torch
-from torch.optim import SGD
+from torch.optim import SGD, Optimizer
 
 from cri.estimators.base import BaseEstimator
 from cri.estimators.misc import DUAL_FEASIBLE_CONSTRAINT_TYPES, assert_input, get_dual_objective
@@ -50,7 +51,8 @@ class DualNCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-        lr: float = 1e-2,
+        optimizer_cls: Type[Optimizer] = SGD,
+        optimizer_kwargs: dict[str, Any] | None = None,
         n_steps: int = 30,
         batch_size: int = 1024,
     ) -> "BaseEstimator":
@@ -62,7 +64,14 @@ class DualNCMCEstimator(BaseEstimator):
         n = T.shape[0]
         batch_size = min(n, batch_size)
 
-        optimizer = SGD(params=list(self.eta_nn.parameters()) + [self.log_eta_f], lr=lr)
+        kwargs = {
+            "lr": 1e-2,
+            "params": list(self.eta_nn.parameters()) + [self.log_eta_f],
+        }
+        if optimizer_kwargs:
+            kwargs.update(optimizer_kwargs)
+        optimizer = optimizer_cls(**kwargs)
+
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
             eta_cmc = self.eta_nn(TX[train_idx])[:, 0] * pi[train_idx] / p_t[train_idx]

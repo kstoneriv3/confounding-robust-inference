@@ -1,3 +1,4 @@
+from typing import Any, Type
 import warnings
 
 import cvxpy as cp
@@ -9,7 +10,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, Kernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler
 from torch.autograd.functional import hessian, jacobian
-from torch.optim import SGD
+from torch.optim import SGD, Optimizer
 
 from cri.estimators.base import BaseEstimator
 from cri.estimators.constraints import (
@@ -31,16 +32,30 @@ from cri.policies import BasePolicy
 from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
 
 
-def apply_black_magic(Psi, p_t, const_type):
-    """Apply black magic to the basis for numerical stability of optimizer and quantily of solution.
-    """
+def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
+    installed_solvers = [sol for sol in solvers if sol in cp.installed_solvers()]
+    for solver in installed_solvers:
+        try:
+            problem.solve(solver=solver)
+        except cp.error.SolverError:
+            pass
+        if problem.status == "optimal":
+            break
+
+    if problem.status != "optimal":
+        raise ValueError(
+            "The optimizer found the associated convex programming to be {}.".format(problem.status)
+        )
+
+
+def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray) -> np.ndarray:
+    """Black magic for choosing orthogonal basis."""
     # Rescale the kernel per sample so that it's scaler better matches that of Y
     Psi = Psi / p_t[:, None]
-    if "box" in const_type:
-        # constant basis is essential for numerical stability of f-divergence constraint
-        Psi = np.concatenate([Psi, np.ones(n)[:, None]], axis=1)
-        # Rescale per basis
-        Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
+    # constant basis is essential for numerical stability of f-divergence constraint
+    Psi = np.concatenate([Psi, np.ones_like(p_t)[:, None]], axis=1)
+    # Rescale per basis
+    Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
     return Psi
 
 
@@ -103,9 +118,9 @@ class KCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
-        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel) 
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, const_type)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -115,7 +130,7 @@ class KCMCEstimator(BaseEstimator):
 
             objective = cp.Minimize(r_np.T @ w)
 
-            constraints: list[cp.Constraint] = [np.zeros(n) <= w]  # TODO
+            constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
@@ -126,66 +141,16 @@ class KCMCEstimator(BaseEstimator):
 
             problem = cp.Problem(objective, constraints)
             solvers = [cp.MOSEK, cp.ECOS, cp.SCS]
-            self.try_solvers(problem, solvers)
-
-        if problem.status != "optimal":
-            raise ValueError(
-                "The optimizer found the associated convex programming to be {}.".format(
-                    problem.status
-                )
-            )
+            try_solvers(problem, solvers)
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
-
-        print(problem.status)  # TODO
-        print(torch.sum((self.w * p_t) ** 2 - 1) / p_t.shape[0])  # TODO
-        print(torch.mean(self.w * r))
-
-       # The solution is very inaccurate for p_t >= eps!
-        eps = 5e-2
-        print("Solutions")
-        print(torch.mean(self.w * (p_t < eps) * r + 1 / p_t * (p_t >= eps) * r))  # close to the solution
-        print(torch.mean(self.w * (p_t >= eps) * r + 1 / p_t * (p_t < eps) * r))  # far from the solution
-
-        print("Accuracy in objective norm")
-        print(torch.mean((r * (self.w - 1 / p_t) * (p_t < eps)) ** 2))
-        print(torch.mean((r * (self.w - 1 / p_t) * (p_t >= eps)) ** 2))
-
-        print("Objective norm")
-        print(torch.mean(r ** 2 * (p_t < eps)))
-        print(torch.mean(r ** 2 * (p_t >= eps)))
-
-        print("Count")
-        print(torch.sum(p_t < eps))
-        print(torch.sum(p_t >= eps))
-
-        print("Y")
-        print(Y[p_t < eps])
-        print(Y[p_t >= eps])
-
-        print("pi")
-        print(self.pi[p_t < eps])
-        print(self.pi[p_t >= eps])
-
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
         self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
         self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
         return self
-
-    @staticmethod  # maybe make it a standalone function
-    def try_solvers(problem: cp.Problem, solvers: list[str]):
-        installed_solvers = [sol for sol in solvers if sol in cp.installed_solvers()]
-        for solver in installed_solvers:
-            try:
-                problem.solve(solver=solver)
-            except cp.error.SolverError:
-                pass
-            if problem.status == "optimal":
-                break
-        print(solver)
 
     def predict(self) -> torch.Tensor:
         return self.fitted_lower_bound
@@ -204,7 +169,7 @@ class KCMCEstimator(BaseEstimator):
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        Psi_np = apply_black_magic(Psi_np, p_t_np, self.const_type)
+        Psi_np = apply_black_magic(Psi_np, p_t_np)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
@@ -359,7 +324,8 @@ class DualKCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-        lr: float = 3e-2,
+        optimizer_cls: Type[Optimizer] = SGD,
+        optimizer_kwargs: dict[str, Any] | None = None,
         n_steps: int = 50,
         batch_size: int = 1024,
         seed: int = 0,
@@ -382,9 +348,16 @@ class DualKCMCEstimator(BaseEstimator):
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, self.const_type)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
 
-        optimizer = SGD(params=[self.eta_kcmc, self.log_eta_f], lr=lr)
+        kwargs = {
+            "lr": 3e-2,
+            "params": [self.eta_kcmc, self.log_eta_f],
+        }
+        if optimizer_kwargs:
+            kwargs.update(optimizer_kwargs)
+        optimizer = optimizer_cls(**kwargs)
+
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
             eta_cmc = (
@@ -447,7 +420,7 @@ class DualKCMCEstimator(BaseEstimator):
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
-        Psi_np = apply_black_magic(Psi_np, p_t_np, self.const_type)
+        Psi_np = apply_black_magic(Psi_np, p_t_np)
         pi = policy.prob(T, X)
         eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
@@ -595,14 +568,8 @@ class GPKCMCEstimator(BaseEstimator):
                 constraints.extend(get_f_div_constraint(w, p_t_np, self.gamma, self.const_type))
 
             problem = cp.Problem(objective, constraints)
-            problem.solve(solver=cp.SCS)
-
-        if problem.status not in ("optimal", "optimal_inaccurate"):
-            raise ValueError(
-                "The optimizer found the associated convex programming to be {}.".format(
-                    problem.status
-                )
-            )
+            solvers = [cp.MOSEK, cp.ECOS, cp.SCS]
+            try_solvers(problem, solvers)
 
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
