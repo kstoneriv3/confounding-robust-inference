@@ -126,17 +126,6 @@ class KCMCEstimator(BaseEstimator):
         self.w = torch.zeros_like(p_t)
         self.w[:] = as_tensor(w.value)
 
-        def func(x):
-            z = p_t * (self.w + x * r)
-            return float(torch.sum(z ** 2 - 1).data)
-
-        from scipy.optimize import minimize_scalar
-        res = minimize_scalar(lambda x: func(x) ** 2, [-1, 1], method="Golden", tol=1e-14)
-        print(func(0))
-        print(func(res.x))
-        print(res.x)
-        
-            
         print(problem.status)  # TODO
         print(torch.sum((self.w * p_t) ** 2 - 1) / p_t.shape[0])  # TODO
         print(torch.mean(self.w * r))
