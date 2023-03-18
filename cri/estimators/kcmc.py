@@ -31,6 +31,19 @@ from cri.policies import BasePolicy
 from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
 
 
+def apply_black_magic(Psi, p_t, const_type):
+    """Apply black magic to the basis for numerical stability of optimizer and quantily of solution.
+    """
+    # Rescale the kernel per sample so that it's scaler better matches that of Y
+    Psi = Psi / p_t[:, None]
+    if "box" in const_type:
+        # constant basis is essential for numerical stability of f-divergence constraint
+        Psi = np.concatenate([Psi, np.ones(n)[:, None]], axis=1)
+        # Rescale per basis
+        Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
+    return Psi
+
+
 class KCMCEstimator(BaseEstimator):
     """Kernel Conditional Moment Constraints (KCMC) Estimator.
 
@@ -90,8 +103,9 @@ class KCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
-        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np) / p_t_np[:, None] # this makes it harder somehow...
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel) 
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, const_type)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -101,9 +115,7 @@ class KCMCEstimator(BaseEstimator):
 
             objective = cp.Minimize(r_np.T @ w)
 
-            # constraints: list[cp.Constraint] = [np.zeros(n) <= w] 
-            # constraints: list[cp.Constraint] = [np.zeros(n) <= w, w == 1 / p_t_np]  # TODO
-            constraints: list[cp.Constraint] = [np.zeros(n) <= w, cp.sum(np.multiply(p_t, w)) == n]  # TODO
+            constraints: list[cp.Constraint] = [np.zeros(n) <= w]  # TODO
             kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
@@ -113,9 +125,8 @@ class KCMCEstimator(BaseEstimator):
                 constraints.extend(f_div_const)
 
             problem = cp.Problem(objective, constraints)
-            solvers = [cp.ECOS, cp.SCS, cp.MOSEK]
+            solvers = [cp.MOSEK, cp.ECOS, cp.SCS]
             self.try_solvers(problem, solvers)
-            # problem.solve(solver=cp.ECOS, max_iters=1000, abstol=1e-12) #, verbose=True)  # TODO
 
         if problem.status != "optimal":
             raise ValueError(
@@ -169,7 +180,7 @@ class KCMCEstimator(BaseEstimator):
         installed_solvers = [sol for sol in solvers if sol in cp.installed_solvers()]
         for solver in installed_solvers:
             try:
-                problem.solve(solver=solver) #, verbose=True)
+                problem.solve(solver=solver)
             except cp.error.SolverError:
                 pass
             if problem.status == "optimal":
@@ -192,7 +203,8 @@ class KCMCEstimator(BaseEstimator):
         pi = policy.prob(T, X)
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.transform(TX_np) / p_t_np[:, None]
+        Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        Psi_np = apply_black_magic(Psi_np, p_t_np, self.const_type)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
@@ -337,7 +349,7 @@ class DualKCMCEstimator(BaseEstimator):
         self.Gamma = Gamma if Gamma is not None else 1.0
         self.D = D
         self.kernel = kernel
-        self.eta_kcmc = torch.zeros(D + 1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
+        self.eta_kcmc = torch.zeros(D + 2, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
         self.log_eta_f = torch.zeros(1, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
 
     def fit(
@@ -369,7 +381,8 @@ class DualKCMCEstimator(BaseEstimator):
 
         self.kernel = self.kernel if self.kernel is not None else select_kernel(Y_np, T_np, X_np)
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np) / p_t_np[:, None]
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, self.const_type)
 
         optimizer = SGD(params=[self.eta_kcmc, self.log_eta_f], lr=lr)
         for i in range(n_steps):
@@ -433,7 +446,8 @@ class DualKCMCEstimator(BaseEstimator):
         assert_input(Y, T, X, p_t)
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.transform(TX_np) / p_t_np[:, None]
+        Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        Psi_np = apply_black_magic(Psi_np, p_t_np, self.const_type)
         pi = policy.prob(T, X)
         eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc * pi / p_t
         dual = get_dual_objective(
