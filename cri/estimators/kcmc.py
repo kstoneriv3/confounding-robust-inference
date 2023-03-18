@@ -222,11 +222,11 @@ class KCMCEstimator(BaseEstimator):
         # The dual objective does not depend on eta_f for box constraints
         if "box" in self.const_type:
             eta_kcmc = eta
-            eta_f = torch.zeros(1)
+            eta_f = torch.ones(1)
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
-        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc * self.pi / self.p_t
+        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
         loss = get_dual_objective(
             self.Y,
             self.p_t,
@@ -270,13 +270,13 @@ class KCMCEstimator(BaseEstimator):
             H = as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
             eta = torch.tensor(self.eta.data, requires_grad=True)
-            H = hessian(lambda eta: self.get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
+            H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
         return H
 
     def _get_dual_jacobian(self) -> torch.Tensor:
         eta = torch.tensor(self.eta.data, requires_grad=True)
-        H = jacobian(lambda eta: self.get_fitted_dual_loss(eta), eta)  # type: ignore
-        raise H
+        H = jacobian(lambda eta: self._get_fitted_dual_loss(eta), eta)  # type: ignore
+        return H
 
 
 class DualKCMCEstimator(BaseEstimator):

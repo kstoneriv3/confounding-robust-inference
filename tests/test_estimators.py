@@ -1,5 +1,6 @@
 from typing import NamedTuple, Type
 
+import numpy as np
 import pytest
 import torch
 from torch.optim import Adam
@@ -16,9 +17,14 @@ from cri.estimators import (
     QBEstimator,
     ZSBEstimator,
 )
-from cri.estimators.misc import CONSTRAINT_TYPES, DUAL_FEASIBLE_CONSTRAINT_TYPES, normalize_p_t
+from cri.estimators.misc import (
+    CONSTRAINT_TYPES,
+    DUAL_FEASIBLE_CONSTRAINT_TYPES,
+    get_a_b,
+    normalize_p_t,
+)
 from cri.policies import GaussianPolicy, LogisticPolicy
-from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_tensor
+from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
 
 torch.random.manual_seed(0)
 
@@ -240,20 +246,18 @@ def test_true_lower_bound(
     spec: EstimatorSpec,
 ) -> None:
     """The out-of-fit prediction of the lower bound should be lower than the true lower bound."""
-    pytest.skip()
-    if hasattr(spec.estimator_cls, "predict_dual") or (
-        data_and_policy_type == "continuous" and not spec.supports_continuous_action_space
-    ):
+    if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator, DualNCMCEstimator):
         pytest.skip()
 
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
-    estimator = estimator_factory(spec, "Tan_box", gamma=0.05, Gamma=1.5)
+    const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
+    estimator = estimator_factory(spec, const_type, Gamma=1.5)
     estimator.fit(Y[:30], T[:30], X[:30], p_t[:30], policy)
     out_of_fit_est = estimator.predict_dual(Y[30:], T[30:], X[30:], p_t[30:], policy)
 
     true_lower_bound = TRUE_LOWER_BOUND[data_and_policy_type]
-    assert out_of_fit_est <= true_lower_bound
+    assert out_of_fit_est <= true_lower_bound  # This holds only in expectation or sample size limit
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
@@ -275,8 +279,25 @@ def test_strong_duality(
     assert torch.isclose(dual, primal, atol=1e-5)
 
 
-def test_jacobian() -> None:
-    pass
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+def test_jacobian(data_and_policy_type: str) -> None:
+    """Check the Jacobian obtained by autodiff with analytic expression."""
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
+    estimator = KCMCEstimator(const_type, Gamma=1.5, D=3)
+    estimator.fit(Y, T, X, p_t, policy)
+
+    Y_np, p_t_np, pi, eta_kcmc = as_ndarrays(Y, estimator.p_t, estimator.pi, estimator.eta_kcmc)
+    Psi_np = estimator.Psi_np
+    a, b = get_a_b(p_t_np, Gamma=1.5, const_type=const_type)
+
+    analytic_jacobian = as_tensor(
+        Psi_np
+        * np.where(Psi_np @ eta_kcmc < Y_np * pi / p_t_np, 1 - p_t_np * a, 1 - p_t_np * b)[:, None]
+    )
+    autodiff_jacobian = estimator._get_dual_jacobian()
+    assert torch.allclose(analytic_jacobian, autodiff_jacobian)
 
 
 def test_constraints_dimensions() -> None:

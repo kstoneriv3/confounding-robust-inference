@@ -123,7 +123,7 @@ class DualNCMCEstimator(BaseEstimator):
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
         pi = policy.prob(T, X)
-        TX = torch.concat([T[:, None], X], dim=1)
+        TX = torch.concat([T[:, None], X], dim=1).float()  # use float32 for NN
         eta_cmc = self.eta_nn(TX)[:, 0] * pi / p_t
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
