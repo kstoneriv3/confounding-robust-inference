@@ -66,7 +66,7 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
     "squared_Hellinger": lambda v: torch.where(v < 1.0, v / (1 - v), torch.inf),
     "Pearson_chi_squared": lambda v: v**2 / 4.0 + v,
     "Neyman_chi_squared": lambda v: torch.where(
-        torch.abs(v) <= 0.0, -2 * torch.sqrt(-v) + 1, torch.inf
+        v <= 0.0, -2 * torch.sqrt(-v) + 1, torch.inf
     ),
     "total_variation": lambda v: torch.where(torch.abs(v) < 0.5, v, torch.inf),
 }
