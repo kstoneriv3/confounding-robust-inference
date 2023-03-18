@@ -129,11 +129,14 @@ class KCMCEstimator(BaseEstimator):
         print(problem.status)  # TODO
         print(torch.sum((self.w * p_t) ** 2 - 1) / p_t.shape[0])  # TODO
         print(torch.mean(self.w * r))
-        print(torch.mean(p_t * (self.w + res.x * r)))
 
+       # The solution is very inaccurate for p_t >= eps!
         eps = 5e-2
         print(torch.mean(self.w * (p_t < eps) * r + 1 / p_t * (p_t >= eps) * r))  # close to the solution
         print(torch.mean(self.w * (p_t >= eps) * r + 1 / p_t * (p_t < eps) * r))  # far from the solution
+
+        print(torch.norm(r * (self.w - 1 / p_t) * (p_t < eps)))
+        print(torch.norm(r * (self.w - 1 / p_t) * (p_t >= eps)))
 
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
