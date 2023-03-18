@@ -300,9 +300,30 @@ def test_jacobian(data_and_policy_type: str) -> None:
     assert torch.allclose(analytic_jacobian, autodiff_jacobian)
 
 
-def test_constraints_dimensions() -> None:
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+@pytest.mark.parametrize("spec", ESTIMATOR_SPECS, ids=ESTIMATOR_NAMES)
+def test_constraints_dimensions(
+    data_and_policy_type: str,
+    spec: EstimatorSpec,
+    const_type: str,
+) -> None:
     """The lower bound get tighter as the number of coinstraints increases."""
-    pass
+    if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator) or "D" not in spec.parameters:
+        pytest.skip()
+
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
+    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (4, 10, 20)
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
+    est_d1 = estimator.fit(Y, T, X, p_t, policy).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
+    est_d2 = estimator.fit(Y, T, X, p_t, policy).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D3)
+    est_d3 = estimator.fit(Y, T, X, p_t, policy).predict()
+
+    assert est_d1 <= est_d2 <= est_d3
 
 
 def test_gic() -> None:
