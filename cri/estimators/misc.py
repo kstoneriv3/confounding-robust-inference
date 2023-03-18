@@ -38,7 +38,7 @@ CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
         -0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.0) + 0.5 * u * cp.log(u)
     ),
     "squared_Hellinger": lambda u: u - 2 * cp.sqrt(u) + 1,
-    "Pearson_chi_squared": lambda u: cp.square(u) - 1,
+    "Pearson_chi_squared": lambda u: cp.square(u - 1),
     "Neyman_chi_squared": lambda u: cp.inv_pos(u) - 1,
     "total_variation": lambda u: 0.5 * cp.abs(u - 1),
 }
@@ -48,7 +48,7 @@ TORCH_F_DIV_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "inverse_KL": lambda u: -torch.log(u),
     "Jensen_Shannon": lambda u: -(u + 1) * torch.log((1 + u) / 2) + u * torch.log(u),
     "squared_Hellinger": lambda u: u - 2 * torch.sqrt(u) + 1,
-    "Pearson_chi_squared": lambda u: u**2 - 1,
+    "Pearson_chi_squared": lambda u: (u - 1) ** 2,
     "Neyman_chi_squared": lambda u: 1.0 / u - 1,
     "total_variation": lambda u: 0.5 * torch.abs(u - 1),
 }
@@ -84,6 +84,8 @@ def get_dual_objective(
 ) -> torch.Tensor:
     f_conj = get_f_conjugate(p_t, Gamma, const_type)
     dual = -gamma * eta_f + eta_cmc - eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)
+    # TODO
+    print(list(map(torch.mean, (-gamma * eta_f, eta_cmc, -eta_f * f_conj((eta_cmc - Y * pi / p_t) / eta_f)))))
     return dual
 
 

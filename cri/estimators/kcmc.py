@@ -171,7 +171,7 @@ class KCMCEstimator(BaseEstimator):
         Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         Psi_np = apply_black_magic(Psi_np, p_t_np)
         Psi = as_tensor(Psi_np)
-        eta_cmc = Psi @ self.eta_kcmc * pi / p_t
+        eta_cmc = Psi @ self.eta_kcmc
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )

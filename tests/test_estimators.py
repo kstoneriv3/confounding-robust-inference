@@ -265,7 +265,6 @@ def test_strong_duality(
     """When the uncertainty set of w is a singleton {1 / p_t}, the lower bound must be equal to
     the IPW estimator.
     """
-    pytest.skip()
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
@@ -273,7 +272,7 @@ def test_strong_duality(
     dual = estimator.predict_dual(Y, T, X, p_t, policy)
 
     assert dual <= primal + 1e-5
-    assert torch.isclose(primal, dual, atol=1e-5)
+    assert torch.isclose(dual, primal, atol=1e-5)
 
 
 def test_jacobian() -> None:
@@ -281,7 +280,7 @@ def test_jacobian() -> None:
 
 
 def test_constraints_dimensions() -> None:
-    # The lower bound should get tighter as the number of coinstraints increases.
+    """The lower bound get tighter as the number of coinstraints increases."""
     pass
 
 
