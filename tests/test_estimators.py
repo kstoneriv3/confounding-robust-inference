@@ -236,7 +236,7 @@ def test_singleton_uncertainty_set(
             assert torch.isclose(est, target, rtol=0.1)
         else:
             estimator.fit(
-                Y, T, X, p_t, policy, optimizer_kwargs={"lr": 5e-2}, n_steps=200
+                Y, T, X, p_t, policy, optimizer_kwargs={"lr": 5e-2}, n_steps=300
             )  # type: ignore
             est = estimator.predict()
             assert est <= target
@@ -278,7 +278,6 @@ def test_strong_duality(
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
     primal = estimator.fit(Y, T, X, p_t, policy).predict()
     dual = estimator.predict_dual(Y, T, X, p_t, policy)
-
     assert dual <= primal + 1e-5
     assert torch.isclose(dual, primal, atol=1e-5)
 
@@ -339,6 +338,55 @@ def test_gic(
     """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
+
+    # Underfit
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
+    estimator.fit(Y, T, X, p_t, policy)
+
+    # TODO
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
+    estimator.fit(Y, T, X, p_t, policy)
+    # assert False, estimator.predict_dual(Y, T, X, p_t, policy)
+    assert torch.allclose(Y, estimator.Y)
+    assert torch.allclose(T, estimator.T)
+    assert torch.allclose(X, estimator.X)
+    assert torch.allclose(p_t, estimator.p_t)
+    assert policy == estimator.policy
+    # assert False, str(torch.sort(p_t * estimator.w))
+    # assert False, str(list(x[75:80] for x in (Y, T, X, p_t, policy.prob(T, X), estimator.w)))
+
+    est_under = estimator.predict()
+    gic_under = estimator.predict_gic()
+    assert gic_under <= est_under
+    # Maybe appropriate
+    # D_opt = 10 if data_and_policy_type == "binary" else 3
+    D_opt = 10 if data_and_policy_type == "binary" else 3
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
+    estimator.fit(Y, T, X, p_t, policy)
+    est_opt = estimator.predict()
+    gic_opt = estimator.predict_gic()
+    assert gic_opt <= est_opt
+    # Overfit
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
+    estimator.fit(Y, T, X, p_t, policy)
+    est_over = estimator.predict()
+    gic_over = estimator.predict_gic()
+    assert gic_over <= est_over
+
+    assert gic_under <= gic_opt
+    assert gic_over <= gic_opt
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+def test_ci(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    pytest.skip()  # TODO
+    """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
 
     # Underfit
@@ -366,10 +414,6 @@ def test_gic(
     assert gic_over <= gic_opt
 
 
-def test_ci() -> None:
-    pass
-
-
 def test_hajek_estimator() -> None:
     Y, T, X, _, p_t, _ = DATA["binary"]
     policy = POLICIES["binary"]
@@ -377,9 +421,3 @@ def test_hajek_estimator() -> None:
     p_t_normalized = normalize_p_t(p_t, T)
     ipw = IPWEstimator().fit(Y, T, X, p_t_normalized, policy).predict()
     assert torch.isclose(hajek, ipw)
-
-
-# how many parameters are there?
-# - 6 different lower bound estimators
-# - 9 different const_types
-# - binary and continuous treatment space

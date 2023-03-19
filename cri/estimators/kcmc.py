@@ -149,7 +149,7 @@ class KCMCEstimator(BaseEstimator):
         self.problem = problem
         self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
-        self.eta_f = as_tensor(f_div_const[0].dual_value if "box" not in self.const_type else 1.0)
+        self.eta_f = as_tensor([f_div_const[0].dual_value] if "box" not in self.const_type else [1.0])
         return self
 
     def predict(self) -> torch.Tensor:
@@ -184,7 +184,16 @@ class KCMCEstimator(BaseEstimator):
         V = scores.T @ scores / n
         J = self._get_dual_hessian()
         J_inv = torch.pinverse(J)
+        eta_cmc = torch.as_tensor(self.Psi_np) @ self.eta_kcmc
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
+        # TODO
+        assert not torch.any(torch.isnan(self._get_fitted_dual_loss(self.eta)))
+        # assert not torch.any(torch.isnan(J)), J  # this is zero matrix
+        # assert False, self.predict_dual(self.Y, self.T, self.X, self.p_t, self.policy)
+        # assert False, torch.sort(self._get_fitted_dual_loss(self.eta))
+        # assert False, torch.sort((eta_cmc - self.Y * self.pi / self.p_t) / self.eta_f)  # This is fine for data without error
+        # assert False, torch.sort((eta_cmc - (self.Y * self.pi - as_tensor(self.problem.constraints[0].dual_value)) / self.p_t) / self.eta_f)
+        assert not torch.any(torch.isnan(V)), V
         return gic
 
     def predict_ci(
@@ -192,7 +201,7 @@ class KCMCEstimator(BaseEstimator):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
-        Bootstrap with used for calculating the percentile of the asymptotic distribution.
+        Bootstrap is used for calculating the percentile of the asymptotic distribution.
 
         Args:
             n_boot: The number of Monte Carlo samples used to calculate the percentile of the
@@ -222,7 +231,7 @@ class KCMCEstimator(BaseEstimator):
         # The dual objective does not depend on eta_f for box constraints
         if "box" in self.const_type:
             eta_kcmc = eta
-            eta_f = torch.ones(1)
+            eta_f = torch.ones((1,))
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
@@ -259,7 +268,7 @@ class KCMCEstimator(BaseEstimator):
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
-            kernel = WhiteKernel() + self.kernel
+            kernel = WhiteKernel() + DEFAULT_KERNEL
             model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
             model.fit(TX_np[:1000], Y_np[:1000])
             y_mean, y_std = model.predict(TX_np, return_std=True)
@@ -513,7 +522,7 @@ class GPKCMCEstimator(BaseEstimator):
         self.D = D
         self.alpha = alpha
         self.sigma2 = sigma2
-        self.kernel = kernel
+        self.kernel = kernel if kernel is not None else DEFAULT_KERNEL
 
     def fit(
         self,
@@ -536,7 +545,6 @@ class GPKCMCEstimator(BaseEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
 

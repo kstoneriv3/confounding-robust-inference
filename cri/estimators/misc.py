@@ -4,7 +4,7 @@ import cvxpy as cp
 import numpy as np
 import torch
 from sklearn.decomposition import KernelPCA
-from sklearn.gaussian_process.kernels import RBF, DotProduct, Kernel
+from sklearn.gaussian_process.kernels import RBF, DotProduct, Kernel, ConstantKernel
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
@@ -69,8 +69,24 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
     "total_variation": lambda v: torch.where(torch.abs(v) <= 0.5 + EPS, v, torch.inf),
 }
 
-DEFAULT_KERNEL = 0.8 * DotProduct(0.0, sigma_0_bounds="fixed") + 0.4 * RBF(
-    0.3, length_scale_bounds="fixed"
+# Conjugate when we have primal constraint 0 <= w
+TORCH_EXTENDED_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
+    "KL": lambda v: torch.exp(v - 1),
+    "inverse_KL": lambda v: -1 - torch.log(-v),
+    "Jensen_Shannon": lambda v: torch.where(
+        v < torch.log(torch.as_tensor(2.0)) + EPS, -torch.log(2 - torch.exp(v)), torch.inf
+    ),
+    "squared_Hellinger": lambda v: torch.where(v < 1.0 + EPS, v / (1 - v), torch.inf),
+    "Pearson_chi_squared": lambda v: torch.where(v < -2, -torch.ones_like(v), v**2 / 4.0 + v),
+    "Neyman_chi_squared": lambda v: torch.where(v <= 0.0 + EPS, -2 * torch.sqrt(-v) + 1, torch.inf),
+    "total_variation": lambda v: torch.where(
+        torch.abs(v) <= 0.5 + EPS, v, torch.where(v < 0, -0.5, torch.inf)
+    ),
+}
+
+DEFAULT_KERNEL = (
+    ConstantKernel(0.8, constant_value_bounds="fixed") * DotProduct(0.0, sigma_0_bounds="fixed")
+    + ConstantKernel(0.4, constant_value_bounds="fixed") * RBF(0.3, length_scale_bounds="fixed")
 )
 
 
@@ -104,7 +120,7 @@ def get_f_conjugate(
             return torch.where(v < 0.0, a_w_tilde * v, b_w_tilde * v)
 
     else:
-        f_conj = TORCH_F_DIV_CONJUGATE_FUNCTIONS[const_type]
+        f_conj = TORCH_EXTENDED_F_DIV_CONJUGATE_FUNCTIONS[const_type]
     return f_conj
 
 
