@@ -149,7 +149,9 @@ class KCMCEstimator(BaseEstimator):
         self.problem = problem
         self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
-        self.eta_f = as_tensor([f_div_const[0].dual_value] if "box" not in self.const_type else [1.0])
+        self.eta_f = as_tensor(
+            [f_div_const[0].dual_value] if "box" not in self.const_type else [1.0]
+        )
         return self
 
     def predict(self) -> torch.Tensor:
@@ -184,9 +186,9 @@ class KCMCEstimator(BaseEstimator):
         V = scores.T @ scores / n
         J = self._get_dual_hessian()
         J_inv = torch.pinverse(J)
-        eta_cmc = torch.as_tensor(self.Psi_np) @ self.eta_kcmc
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
         # TODO
+        # eta_cmc = torch.as_tensor(self.Psi_np) @ self.eta_kcmc
         assert not torch.any(torch.isnan(self._get_fitted_dual_loss(self.eta)))
         # assert not torch.any(torch.isnan(J)), J  # this is zero matrix
         # assert False, self.predict_dual(self.Y, self.T, self.X, self.p_t, self.policy)
@@ -251,13 +253,13 @@ class KCMCEstimator(BaseEstimator):
     @property
     def eta(self) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints so ignore eta_f then.
-        if "box" in self.const_type:
+        if self.const_type in ("Tan_box", "lr_box", "total_variation"):
             return self.eta_kcmc.data
         else:
             return torch.concat([self.eta_kcmc, self.eta_f])
 
     def _get_dual_hessian(self) -> torch.Tensor:
-        if "box" in self.const_type:
+        if self.const_type in ("Tan_box", "lr_box", "total_variation"):
             # Use numpy for computation in this block.
             Y_np, T_np, X_np, p_t_np, pi_np, eta_kcmc_np = as_ndarrays(
                 self.Y, self.T, self.X, self.p_t, self.pi, self.eta_kcmc
@@ -273,9 +275,14 @@ class KCMCEstimator(BaseEstimator):
             model.fit(TX_np[:1000], Y_np[:1000])
             y_mean, y_std = model.predict(TX_np, return_std=True)
             r_mean, r_std = map(lambda x: x * pi_np / p_t_np, [y_mean, y_std])
-            conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np, loc=r_mean, scale=r_std)
 
-            diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+            if self.const_type == "total_variation":
+                conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np + 0.5, loc=r_mean, scale=r_std)
+                diag = np.diag(conditional_pdf)
+            else:
+                conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np, loc=r_mean, scale=r_std)
+                diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+
             H = as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
             eta = torch.tensor(self.eta.data, requires_grad=True)
@@ -284,8 +291,8 @@ class KCMCEstimator(BaseEstimator):
 
     def _get_dual_jacobian(self) -> torch.Tensor:
         eta = self.eta.clone().detach().requires_grad_(True)
-        H = jacobian(lambda eta: self._get_fitted_dual_loss(eta), eta)  # type: ignore
-        return H
+        J = jacobian(lambda eta: self._get_fitted_dual_loss(eta), eta)  # type: ignore
+        return J
 
 
 class DualKCMCEstimator(BaseEstimator):
