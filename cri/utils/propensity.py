@@ -46,8 +46,7 @@ def estimate_p_t_continuous(T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     assert len(T.shape) == 1 and len(X.shape) == 2
     X_np, T_np = as_ndarrays(X, T)
     X_np = StandardScaler().fit_transform(X_np)
-    kernel = WhiteKernel() + DEFAULT_KERNEL
-    model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
+    model = GaussianProcessRegressor(kernel=DEFAULT_KERNEL, alpha=0.25, normalize_y=True)
     model.fit(X_np[:1000], T_np[:1000])  # GP is slow for large sample size so truncate at n = 1000.
     t_mean, t_std = model.predict(X_np, return_std=True)
     p_t_np = norm.pdf(T_np, loc=t_mean, scale=t_std)

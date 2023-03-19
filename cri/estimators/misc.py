@@ -84,9 +84,10 @@ TORCH_EXTENDED_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], tor
     ),
 }
 
-DEFAULT_KERNEL = ConstantKernel(0.8, constant_value_bounds="fixed") * DotProduct(
-    0.0, sigma_0_bounds="fixed"
-) + ConstantKernel(0.4, constant_value_bounds="fixed") * RBF(0.3, length_scale_bounds="fixed")
+DEFAULT_KERNEL = ConstantKernel() * (
+    ConstantKernel(4, constant_value_bounds="fixed") * DotProduct(0.0, sigma_0_bounds="fixed")
+    + ConstantKernel(1, constant_value_bounds="fixed") * RBF(0.3, length_scale_bounds="fixed")
+)
 
 
 def get_dual_objective(

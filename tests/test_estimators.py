@@ -342,25 +342,12 @@ def test_gic(
     # Underfit
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator.fit(Y, T, X, p_t, policy)
-
-    # TODO
-    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
-    estimator.fit(Y, T, X, p_t, policy)
-    # assert False, estimator.predict_dual(Y, T, X, p_t, policy)
-    assert torch.allclose(Y, estimator.Y)
-    assert torch.allclose(T, estimator.T)
-    assert torch.allclose(X, estimator.X)
-    assert torch.allclose(p_t, estimator.p_t)
-    assert policy == estimator.policy
-    # assert False, str(torch.sort(p_t * estimator.w))
-    # assert False, str(list(x[75:80] for x in (Y, T, X, p_t, policy.prob(T, X), estimator.w)))
-
     est_under = estimator.predict()
     gic_under = estimator.predict_gic()
     assert gic_under <= est_under
     # Maybe appropriate
     # D_opt = 10 if data_and_policy_type == "binary" else 3
-    D_opt = 10 if data_and_policy_type == "binary" else 3
+    D_opt = 3
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
@@ -373,6 +360,7 @@ def test_gic(
     gic_over = estimator.predict_gic()
     assert gic_over <= est_over
 
+    assert gic_over <= gic_under
     assert gic_under <= gic_opt
     assert gic_over <= gic_opt
 

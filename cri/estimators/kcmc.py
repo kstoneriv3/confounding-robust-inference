@@ -187,15 +187,6 @@ class KCMCEstimator(BaseEstimator):
         J = self._get_dual_hessian()
         J_inv = torch.pinverse(J)
         gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
-        # TODO
-        # eta_cmc = torch.as_tensor(self.Psi_np) @ self.eta_kcmc
-        assert not torch.any(torch.isnan(self._get_fitted_dual_loss(self.eta)))
-        # assert not torch.any(torch.isnan(J)), J  # this is zero matrix
-        # assert False, self.predict_dual(self.Y, self.T, self.X, self.p_t, self.policy)
-        # assert False, torch.sort(self._get_fitted_dual_loss(self.eta))
-        # assert False, torch.sort((eta_cmc - self.Y * self.pi / self.p_t) / self.eta_f)  # This is fine for data without error
-        # assert False, torch.sort((eta_cmc - (self.Y * self.pi - as_tensor(self.problem.constraints[0].dual_value)) / self.p_t) / self.eta_f)
-        assert not torch.any(torch.isnan(V)), V
         return gic
 
     def predict_ci(
@@ -231,9 +222,15 @@ class KCMCEstimator(BaseEstimator):
 
     def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints
-        if "box" in self.const_type:
+        if self.const_type in ("Tan_box", "lr_box", "total_variation"):
             eta_kcmc = eta
-            eta_f = torch.ones((1,))
+            if "box" in self.const_type:
+                eta_f = torch.ones((1,))
+            elif self.const_type == "total_variation":
+                # The dual objective of the total variation can only be used evaluation,
+                # and it is not differentiable.
+                assert hasattr(self, "fitted_lower_bound")
+                eta_f = self.eta_f
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
@@ -265,23 +262,27 @@ class KCMCEstimator(BaseEstimator):
                 self.Y, self.T, self.X, self.p_t, self.pi, self.eta_kcmc
             )
             n = Y_np.shape[0]
-            a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
 
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
-            kernel = WhiteKernel() + DEFAULT_KERNEL
-            model = GaussianProcessRegressor(kernel=kernel, normalize_y=True)
-            model.fit(TX_np[:1000], Y_np[:1000])
-            y_mean, y_std = model.predict(TX_np, return_std=True)
-            r_mean, r_std = map(lambda x: x * pi_np / p_t_np, [y_mean, y_std])
+            model = GaussianProcessRegressor(kernel=DEFAULT_KERNEL, alpha=0.25, normalize_y=True)
+            model.fit(TX_np[:1000], (pi_np * Y_np)[:1000])
+            r_mean, r_std = model.predict(TX_np, return_std=True)
+            eta_cmc_mean, eta_cmc_std = map(lambda x: x / p_t_np, [r_mean, r_std])
+            eta_cmc = self.Psi_np @ eta_kcmc_np
 
             if self.const_type == "total_variation":
-                conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np + 0.5, loc=r_mean, scale=r_std)
+                conditional_pdf = norm.pdf(eta_cmc + 0.5, loc=eta_cmc_mean, scale=eta_cmc_std)
                 diag = np.diag(conditional_pdf)
             else:
-                conditional_pdf = norm.pdf(self.Psi_np @ eta_kcmc_np, loc=r_mean, scale=r_std)
+                a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
+                conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
                 diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+                # assert False, (model.kernel_, np.mean(np.diag(model.kernel_(TX_np))))
+                # assert False, (y_mean, y_std) 
+                # assert False, (p_t_np * (b - a), conditional_pdf)
+                # assert False, np.sort(p_t_np * (b - a) * conditional_pdf)
 
             H = as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
