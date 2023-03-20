@@ -5,7 +5,6 @@ import torch
 from scipy.stats import norm
 from sklearn.decomposition import KernelPCA
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import WhiteKernel
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 from statsmodels.othermod.betareg import BetaModel

@@ -7,7 +7,7 @@ import torch
 from scipy.linalg import eigh
 from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import Kernel, WhiteKernel
+from sklearn.gaussian_process.kernels import Kernel
 from sklearn.preprocessing import StandardScaler
 from torch.autograd.functional import hessian, jacobian
 from torch.optim import SGD, Optimizer
@@ -184,9 +184,10 @@ class KCMCEstimator(BaseEstimator):
         n = self.Y.shape[0]
         scores = self._get_dual_jacobian()
         V = scores.T @ scores / n
-        J = self._get_dual_hessian()
+        J = self._get_dual_hessian()  # negative definite, as dual objective is concave
         J_inv = torch.pinverse(J)
-        gic = self.fitted_lower_bound - torch.einsum("ij, ji->", J_inv, V) / n
+        gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / n
+        print(torch.einsum("ij, ji->", J_inv, V) / n)
         return gic
 
     def predict_ci(
@@ -279,12 +280,8 @@ class KCMCEstimator(BaseEstimator):
                 a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
                 diag = np.diag(p_t_np * (b - a) * conditional_pdf)
-                # assert False, (model.kernel_, np.mean(np.diag(model.kernel_(TX_np))))
-                # assert False, (y_mean, y_std) 
-                # assert False, (p_t_np * (b - a), conditional_pdf)
-                # assert False, np.sort(p_t_np * (b - a) * conditional_pdf)
 
-            H = as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
         else:
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
