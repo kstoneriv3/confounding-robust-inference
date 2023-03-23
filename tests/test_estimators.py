@@ -362,22 +362,24 @@ def test_gic(
     assert gic_under <= est_under
     # Maybe appropriate
     # D_opt = 10 if data_and_policy_type == "binary" else 3
-    D_opt = 3
+    D_opt = 10
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
     gic_opt = estimator.predict_gic()
     assert gic_opt <= est_opt
     # Overfit
-    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=80)
+    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=40)
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
     estimator.fit(Y, T, X, p_t, policy)
     est_over = estimator.predict()
     gic_over = estimator.predict_gic()
     assert gic_over <= est_over
 
-    assert gic_over <= gic_under
-    # assert gic_under <= gic_opt
-    # assert gic_over <= gic_opt
+    # assert gic_over <= gic_under
+    assert gic_under <= gic_opt
+    assert gic_over <= gic_opt
+    assert False
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])

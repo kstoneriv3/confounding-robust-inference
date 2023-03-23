@@ -5,7 +5,7 @@ import cvxpy as cp
 import numpy as np
 import torch
 from scipy.linalg import eigh
-from scipy.stats import norm
+from scipy.stats import norm, gaussian_kde
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.preprocessing import StandardScaler
@@ -29,7 +29,7 @@ from cri.estimators.misc import (
     get_dual_objective,
 )
 from cri.policies import BasePolicy
-from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
+from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor, as_tensors
 
 
 def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
@@ -72,6 +72,10 @@ class KCMCEstimator(BaseEstimator):
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
         kernel: Kernel used in the low-rank kernel quantile regression.
+        should_augment_data: If True, use argumented data for estimation of hessian of the dual
+            loss and asymptotic variance of its gradient. Empirically, this technique sometimes
+            helps to stabilize the estimation of these quantities. For data augmentation, a kernel
+            density estimator is used.
     """
 
     def __init__(
@@ -81,6 +85,7 @@ class KCMCEstimator(BaseEstimator):
         Gamma: float | None = None,
         D: int = 30,
         kernel: Kernel | None = None,
+        should_augment_data: bool = False,
     ) -> None:
         assert const_type in CONSTRAINT_TYPES
         if "box" in const_type:
@@ -95,6 +100,7 @@ class KCMCEstimator(BaseEstimator):
         self.Gamma = Gamma if Gamma is not None else 1.0
         self.D = D
         self.kernel = kernel
+        self.should_augment_data = should_augment_data
 
     def fit(
         self,
@@ -170,7 +176,7 @@ class KCMCEstimator(BaseEstimator):
         pi = policy.prob(T, X)
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi_np = apply_black_magic(Psi_np, p_t_np)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc
@@ -182,12 +188,17 @@ class KCMCEstimator(BaseEstimator):
     def predict_gic(self) -> torch.Tensor:
         """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
         n = self.Y.shape[0]
-        scores = self._get_dual_jacobian()
+        _, scores = self._get_dual_loss_and_jacobian()
+        mask = torch.any(torch.isnan(scores), axis=1)
         V = scores.T @ scores / n
         J = self._get_dual_hessian()  # negative definite, as dual objective is concave
         J_inv = torch.pinverse(J)
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / n
-        print(torch.einsum("ij, ji->", J_inv, V) / n)
+        print(torch.einsum("ij, ji->", J_inv, V) / n)  # TODO, maybe scaling issue?
+        if self.D == 10:
+            S, _ = np.linalg.eigh(V)
+            print((V[:4, :4], J[:4, :4], S))
+            # assert False, 
         return gic
 
     def predict_ci(
@@ -203,8 +214,7 @@ class KCMCEstimator(BaseEstimator):
             alpha: Significance level of used for the confidence interval.
         """
         n = self.Y.shape[0]
-        losses = self._get_fitted_dual_loss(self.eta)
-        scores = self._get_dual_jacobian()
+        losses, scores = self._get_dual_loss_and_jacobian()
         l_s = torch.concat([losses, scores], dim=1)
         V_joint = l_s.T @ l_s.T / n
         J = self._get_dual_hessian()
@@ -235,18 +245,89 @@ class KCMCEstimator(BaseEstimator):
         else:
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
-        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
-        loss = get_dual_objective(
-            self.Y,
-            self.p_t,
-            self.pi,
-            eta_cmc,
-            eta_f,
-            self.gamma,
-            self.Gamma,
-            self.const_type,
-        )
+
+        if self.should_augment_data:
+            eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
+            loss = get_dual_objective(
+                self.Y,
+                self.p_t,
+                self.pi,
+                eta_cmc,
+                eta_f,
+                self.gamma,
+                self.Gamma,
+                self.const_type,
+            )
+        else:
+            # Argument data to get non-singular estimates of the Hessian and the Jacobian
+            Y, T, X, p_t, pi = self.augment_data(3000)
+            T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
+            TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+            Psi_np = self.Psi_np_pipeline.transform(TX_np)
+            Psi_np = apply_black_magic(Psi_np, p_t_np)
+            Psi = as_tensor(Psi_np)
+            eta_cmc = Psi @ eta_kcmc
+            loss = get_dual_objective(
+                Y,
+                p_t,
+                pi,
+                eta_cmc,
+                eta_f,
+                self.gamma,
+                self.Gamma,
+                self.const_type,
+            )
+            if torch.any(torch.isfinite(loss)):
+                # Even if we select samples whose loss is not nan or infinite, 
+                # the backward pass tries to propagete zero grad for remaining samples,
+                # resulting in nan gradients.
+                mask = torch.isfinite(loss)
+                loss = get_dual_objective(
+                    Y[mask],
+                    p_t[mask],
+                    pi[mask],
+                    eta_cmc[mask],
+                    eta_f,
+                    self.gamma,
+                    self.Gamma,
+                    self.const_type,
+                )
         return loss
+
+    def augment_data(self, n: int, seed: int = 0):
+        Y_np, T_np, X_np, p_t_np = as_ndarrays(self.Y, self.T, self.X, self.p_t)
+        log_p_t_np = np.log(p_t_np)
+        T_unique, T_count = np.unique(T_np, return_counts=True)
+        if len(T_unique) == len(T_np):  # T: continuous
+            data = np.concatenate([Y_np[:, None], T_np[:, None], X_np, log_p_t_np[:, None]], axis=1)
+            scaler = StandardScaler().fit(data)
+            scaled_data = scaler.transform(data)
+            scaled_augmented_data = gaussian_kde(scaled_data.T).resample(n, seed).T
+            augmented_data = scaler.inverse_transform(scaled_augmented_data)
+            Y_arg_np, T_arg_np, X_arg_np, log_p_t_arg_np = [
+               (x[:, 0] if x.shape[1] == 1 else x) for x in np.split(augmented_data, [1, 2, -1], axis=1)
+            ]
+        else:
+            data = np.concatenate([Y_np[:, None], X_np, log_p_t_np[:, None]], axis=1)
+            T_prob = T_count / np.sum(T_count)
+            T_arg_np = np.random.choice(T_unique, size=n, p=T_prob)
+            augmented_data = np.empty((n, data.shape[1]))
+            for i, t in enumerate(T_unique):
+                n_t = sum(T_arg_np == t)
+                data_t = data[T_np == t]
+                scaler_t = StandardScaler().fit(data_t)
+                scaled_data_t = scaler_t.transform(data_t)
+                scaled_augmented_data_t = gaussian_kde(scaled_data_t.T).resample(n_t, seed).T
+                augmented_data[T_arg_np == t] = scaler_t.inverse_transform(scaled_augmented_data_t)
+            Y_arg_np, X_arg_np, log_p_t_arg_np = [
+               (x[:, 0] if x.shape[1] == 1 else x) for x in np.split(augmented_data, [1, -1], axis=1)
+            ]
+            log_p_t_arg_np = np.minimum(0., log_p_t_arg_np)  # discrete probability mass must be <= 1.
+        p_t_arg_np = np.exp(log_p_t_arg_np)
+        p_t_arg_np = np.clip(p_t_arg_np, 0.5 * min(p_t_np), 2 * max(p_t_np))  # for numerical stability
+        Y_arg, T_arg, X_arg, p_t_arg = as_tensors(Y_arg_np, T_arg_np, X_arg_np, p_t_arg_np)
+        pi_arg = self.policy.prob(T_arg, X_arg)
+        return Y_arg, T_arg, X_arg, p_t_arg, pi_arg
 
     @property
     def eta(self) -> torch.Tensor:
@@ -287,10 +368,18 @@ class KCMCEstimator(BaseEstimator):
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
         return H
 
-    def _get_dual_jacobian(self) -> torch.Tensor:
+    def _get_dual_loss_and_jacobian(self) -> torch.Tensor:
         eta = self.eta.clone().detach().requires_grad_(True)
-        J = jacobian(lambda eta: self._get_fitted_dual_loss(eta), eta)  # type: ignore
-        return J
+        one = torch.ones((1,), requires_grad=True)
+        one_and_eta = torch.concat([eta, one])
+        loss_and_J = jacobian(
+            lambda x: self._get_fitted_dual_loss(x[1:]) * x[0],
+            one_and_eta,
+            vectorize=True,
+        )  # type: ignore
+        loss = loss_and_J[:, 0]
+        J = loss_and_J[:, 1:]
+        return loss, J
 
 
 class DualKCMCEstimator(BaseEstimator):
@@ -423,7 +512,7 @@ class DualKCMCEstimator(BaseEstimator):
         assert_input(Y, T, X, p_t)
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
-        Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi_np = apply_black_magic(Psi_np, p_t_np)
         pi = policy.prob(T, X)
         eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
