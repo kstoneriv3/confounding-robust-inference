@@ -266,6 +266,29 @@ def test_true_lower_bound(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+def test_augment_data(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    """When the uncertainty set of w is a singleton {1 / p_t}, the lower bound must be equal to
+    the IPW estimator.
+    """
+    if const_type not in ("Tan_box", "lr_box"):
+        pytest.skip()
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
+    estimator.fit(Y, T, X, p_t, policy)
+    estimator_arg = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3, should_augment_data=True)
+    estimator_arg.fit(Y, T, X, p_t, policy)
+    losses, scores = estimator._get_dual_loss_and_jacobian()
+    losses_aug, scores_aug = estimator._get_dual_loss_and_jacobian()
+    assert torch.allclose(losses, losses_aug, rtol=1e-1)
+    assert torch.allclose(scores, scores_aug, rtol=1e-1)
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
 def test_strong_duality(
     data_and_policy_type: str,
     const_type: str,
@@ -284,18 +307,23 @@ def test_strong_duality(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
-def test_jacobian(data_and_policy_type: str, const_type: str) -> None:
+def test_get_dual_loss_and_jacobian(data_and_policy_type: str, const_type: str) -> None:
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
     estimator = KCMCEstimator(const_type, Gamma=1.5, D=3)
     estimator.fit(Y, T, X, p_t, policy)
 
+    loss = estimator._get_fitted_dual_loss(estimator.eta)
+    dual_loss, autodiff_jacobian = estimator._get_dual_loss_and_jacobian()
+
+    # Test loss
+    assert torch.allclose(dual_loss, loss, atol=1e-5)
+
     # The first order condition for the dual objective should be zero.
-    autodiff_jacobian = estimator._get_dual_jacobian()
     assert torch.allclose(
         torch.zeros_like(autodiff_jacobian[0, :]),
-        autodiff_jacobian.mean(axis=0),
+        autodiff_jacobian.mean(axis=0),  # type: ignore
         atol=0.02,
     )
 
@@ -353,33 +381,42 @@ def test_gic(
         pass
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
+    should_augment_data = False  # const_type in ("Tan_box", "lr_box", "
 
     # Underfit
-    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
+    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
+    estimator = KCMCEstimator(
+        const_type, gamma=0.02, Gamma=1.5, D=1, should_augment_data=should_augment_data
+    )
     estimator.fit(Y, T, X, p_t, policy)
     est_under = estimator.predict()
     gic_under = estimator.predict_gic()
     assert gic_under <= est_under
     # Maybe appropriate
     # D_opt = 10 if data_and_policy_type == "binary" else 3
-    D_opt = 10
-    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
+    D_opt = 7
+    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
+    estimator = KCMCEstimator(
+        const_type, gamma=0.02, Gamma=1.5, D=D_opt, should_augment_data=should_augment_data
+    )
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
     gic_opt = estimator.predict_gic()
     assert gic_opt <= est_opt
     # Overfit
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=40)
-    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
+    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
+    estimator = KCMCEstimator(
+        const_type, gamma=0.02, Gamma=1.5, D=25, should_augment_data=should_augment_data
+    )
     estimator.fit(Y, T, X, p_t, policy)
     est_over = estimator.predict()
     gic_over = estimator.predict_gic()
     assert gic_over <= est_over
 
-    # assert gic_over <= gic_under
+    assert False, str(list(map(float, (gic_under, gic_opt, gic_over))))
     assert gic_under <= gic_opt
     assert gic_over <= gic_opt
-    assert False
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
