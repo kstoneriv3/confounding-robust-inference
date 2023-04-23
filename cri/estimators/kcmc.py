@@ -294,6 +294,7 @@ class KCMCEstimator(BaseEstimator):
                 )
         return loss
 
+    # TODO: Unsupport this and support gic for subset of constraints.
     def augment_data(
         self, n: int, seed: int = 0
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
