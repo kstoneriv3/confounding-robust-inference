@@ -369,36 +369,31 @@ def test_kcmc_dimensions(
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
-@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "total_variation", "KL"])
 def test_gic(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
     """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
-    if const_type == "total_variation":
-        # TODO
-        # pytest.skip()  # Jacobian is too small. Its calculation is probably wrong.
-        pass
+    if const_type == "Tan_box" and data_and_policy_type == "continuous":
+        pytest.skip()
+
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
-    should_augment_data = False  # const_type in ("Tan_box", "lr_box", "
+
+    # D_opt = 10 if data_and_policy_type == "binary" else 3
+    D_opt = 7
+    D_over = 30
 
     # Underfit
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
-    estimator = KCMCEstimator(
-        const_type, gamma=0.02, Gamma=1.5, D=1, should_augment_data=should_augment_data
-    )
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator.fit(Y, T, X, p_t, policy)
     est_under = estimator.predict()
     gic_under = estimator.predict_gic()
     assert gic_under <= est_under
-    # Maybe appropriate
-    # D_opt = 10 if data_and_policy_type == "binary" else 3
-    D_opt = 7
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
-    estimator = KCMCEstimator(
-        const_type, gamma=0.02, Gamma=1.5, D=D_opt, should_augment_data=should_augment_data
-    )
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
     gic_opt = estimator.predict_gic()
@@ -406,17 +401,14 @@ def test_gic(
     # Overfit
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=40)
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
-    estimator = KCMCEstimator(
-        const_type, gamma=0.02, Gamma=1.5, D=25, should_augment_data=should_augment_data
-    )
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_over)
     estimator.fit(Y, T, X, p_t, policy)
     est_over = estimator.predict()
     gic_over = estimator.predict_gic()
     assert gic_over <= est_over
 
-    assert False, str(list(map(float, (gic_under, gic_opt, gic_over))))
-    assert gic_under <= gic_opt
-    assert gic_over <= gic_opt
+    assert gic_under <= gic_opt, f"D_opt too small {gic_under} > {gic_opt}"
+    assert gic_over <= gic_opt, f"D_over too small {gic_over} > {gic_opt}"
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])

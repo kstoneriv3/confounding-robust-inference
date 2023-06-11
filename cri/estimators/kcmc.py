@@ -72,10 +72,6 @@ class KCMCEstimator(BaseEstimator):
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
         kernel: Kernel used in the low-rank kernel quantile regression.
-        should_augment_data: If True, use argumented data for estimation of hessian of the dual
-            loss and asymptotic variance of its gradient. Empirically, this technique sometimes
-            helps to stabilize the estimation of these quantities. For data augmentation, a kernel
-            density estimator is used.
     """
 
     def __init__(
@@ -85,7 +81,6 @@ class KCMCEstimator(BaseEstimator):
         Gamma: float | None = None,
         D: int = 30,
         kernel: Kernel | None = None,
-        should_augment_data: bool = False,
     ) -> None:
         assert const_type in CONSTRAINT_TYPES
         if "box" in const_type:
@@ -100,7 +95,6 @@ class KCMCEstimator(BaseEstimator):
         self.Gamma = Gamma if Gamma is not None else 1.0
         self.D = D
         self.kernel = kernel
-        self.should_augment_data = should_augment_data
 
     def fit(
         self,
@@ -193,11 +187,6 @@ class KCMCEstimator(BaseEstimator):
         J = self._get_dual_hessian()  # negative definite, as dual objective is concave
         J_inv = torch.pinverse(J)
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / n
-        print(torch.einsum("ij, ji->", J_inv, V) / n)  # TODO, maybe scaling issue?
-        if self.D == 10:
-            S, _ = np.linalg.eigh(V)
-            print((V[:4, :4], J[:4, :4], S))
-            # assert False,
         return gic
 
     def predict_ci(
@@ -246,18 +235,25 @@ class KCMCEstimator(BaseEstimator):
             eta_kcmc = eta[:-1]
             eta_f = eta[-1]
 
+        eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
+        loss = get_dual_objective(
+            self.Y,
+            self.p_t,
+            self.pi,
+            eta_cmc,
+            eta_f,
+            self.gamma,
+            self.Gamma,
+            self.const_type,
+        )
+        '''
         if not self.should_augment_data:
-            eta_cmc = as_tensor(self.Psi_np) @ eta_kcmc
-            loss = get_dual_objective(
-                self.Y,
-                self.p_t,
-                self.pi,
-                eta_cmc,
-                eta_f,
-                self.gamma,
-                self.Gamma,
-                self.const_type,
-            )
+            """
+            should_augment_data: If True, use argumented data for estimation of hessian of the dual
+                loss and asymptotic variance of its gradient. Empirically, this technique sometimes
+                helps to stabilize the estimation of these quantities. For data augmentation, a kernel
+                density estimator is used.
+            """
         else:
             # Argument data to get non-singular estimates of the Hessian and the Jacobian
             Y, T, X, p_t, pi = self.augment_data(3000)
@@ -292,8 +288,10 @@ class KCMCEstimator(BaseEstimator):
                     self.Gamma,
                     self.const_type,
                 )
+        '''
         return loss
 
+    '''
     # TODO: Unsupport this and support gic for subset of constraints.
     def augment_data(
         self, n: int, seed: int = 0
@@ -337,6 +335,7 @@ class KCMCEstimator(BaseEstimator):
         Y_arg, T_arg, X_arg, p_t_arg = as_tensors(Y_aug_np, T_aug_np, X_aug_np, p_t_aug_np)
         pi_arg = self.policy.prob(T_arg, X_arg)
         return Y_arg, T_arg, X_arg, p_t_arg, pi_arg
+    '''
 
     @property
     def eta(self) -> torch.Tensor:
@@ -372,9 +371,11 @@ class KCMCEstimator(BaseEstimator):
                 diag = np.diag(p_t_np * (b - a) * conditional_pdf)
 
             H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
-        else:
+        elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
+        else:
+            raise NotImplementedError  # Estimation is very unstable.
         return H
 
     def _get_dual_loss_and_jacobian(self) -> tuple[torch.Tensor, torch.Tensor]:
