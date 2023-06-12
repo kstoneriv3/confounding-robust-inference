@@ -4,7 +4,6 @@ from typing import Any, Type
 import cvxpy as cp
 import numpy as np
 import torch
-from scipy.linalg import eigh
 from scipy.stats import gaussian_kde, norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel
@@ -183,14 +182,14 @@ class KCMCEstimator(BaseEstimator):
         """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
-        V = scores.T @ scores / scores.shape[0]
+        V = scores.T @ scores / n
         J = self._get_dual_hessian()  # negative definite, as dual objective is concave
         J_inv = torch.pinverse(J)
-        gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / n
+        gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
         return gic
 
     def predict_ci(
-        self, n_boot: int = 2**20, alpha: float = 0.05
+        self, n_boot: int = 10000, alpha: float = 0.05
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
@@ -201,24 +200,28 @@ class KCMCEstimator(BaseEstimator):
                 asymptotic distribution by bootstraping.
             alpha: Significance level of used for the confidence interval.
         """
-        n = self.Y.shape[0]
-        losses, scores = self._get_dual_loss_and_jacobian()
-        losses -= losses.mean()
-        l_s = torch.concat([losses, scores], dim=1)
-        V_joint = l_s.T @ l_s.T / l_s.shape[0]
-        J = self._get_dual_hessian()
-        J_inv = torch.pinv(J)
-
-        S, U = eigh(V_joint / n)
-        en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0])  # type: ignore
-        normal_samples = en.draw(n_boot)
-        boot_l_s = U @ torch.sqrt(S) @ normal_samples
-        boot_l_s[:, 0] += self.fitted_lower_bound
-        boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta_shape[0]])
-        boot_lb = boot_losses - torch.einsum("ni,ij,jn->n", boot_scores.T, J_inv, boot_scores) / n
+        boot_lb = self._bootstrap_lower_bounds(n_boot)
         low = torch.quantile(boot_lb, alpha / 2)
         high = torch.quantile(boot_lb, 1 - alpha / 2)
         return low, high
+
+    def _bootstrap_lower_bounds(self, n_boot: int) -> torch.Tensor:
+        n = self.Y.shape[0]
+        losses, scores = self._get_dual_loss_and_jacobian()
+        losses -= losses.mean()
+        l_s = torch.concat([losses[:, None], scores], dim=1)
+        V_joint = l_s.T @ l_s / n
+        J = self._get_dual_hessian()
+        J_inv = torch.pinverse(J)
+
+        en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
+        unif_samples = en.draw(n_boot, dtype=self.Y.dtype)
+        normal_samples = torch.distributions.Normal(0, 1).icdf(unif_samples)
+        boot_l_s =  normal_samples @ torch.cholesky(V_joint / n).mT
+        boot_l_s[:, 0] += self.fitted_lower_bound
+        boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta.shape[0]], dim=1)
+        boot_lb = boot_losses[:, 0] + torch.einsum("mi,ij,mj->m", boot_scores, J_inv, boot_scores) / 2
+        return boot_lb
 
     def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints
