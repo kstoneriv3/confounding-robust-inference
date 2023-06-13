@@ -382,7 +382,9 @@ def test_gic(
 
     failing_inputs = [("KL", "binary")]
     if (const_type, data_and_policy_type) in failing_inputs:
-        pytest.skip("These tests are broken due to unstability of Hessian and covariance estiamtors")
+        pytest.skip(
+            "These tests are broken due to unstability of Hessian and covariance estiamtors"
+        )
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
@@ -433,11 +435,35 @@ def test_ci(
     assert low < gic, f"low = {low} is expected to be smaller than gic = {gic}"
     assert gic < high, f"high = {high} is expected to be larger than gic = {gic}"
 
+    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit(Y, T, X, p_t, policy)
+    gic_ = estimator.predict_gic()
+    low_, high_ = estimator.predict_ci(alpha=1e-2)
+
+    assert low_ < high_
+    assert low_ < gic_, f"low_ = {low_} is expected to be smaller than gic_ = {gic_}"
+    assert gic_ < high_, f"high_ = {high_} is expected to be larger than gic_ = {gic_}"
+
+    failing_inputs = [("KL", "continuous")]
+    if (const_type, data_and_policy_type) in failing_inputs:
+        pass
+    else:
+        assert high_ - low_ < high - low, (
+            f"Confidence interval [{low_}, {high_}] for larger data should be tighter than "
+            f"the confidence interval [{low}, {high}] for smaller data."
+        )
+
     if "box" in const_type:
         true_lower_bound = TRUE_LOWER_BOUND[data_and_policy_type]
-        assert low < true_lower_bound, f"low = {low} is expected to be smaller than true lower bound = {true_lower_bound}"
+        assert (
+            low_ < true_lower_bound
+        ), f"low_ = {low_} is expected to be smaller than true lower bound = {true_lower_bound}"
         # We don't necessarily have tight lower bound, so it should be fine to skip this:
-        # assert true_lower_bound < high, f"high = {high} is expected to be larger than true lower bound = {true_lower_bound}"
+        # assert (
+        #     true_lower_bound < high
+        # ), f"high = {high} is expected to be larger than true lower bound = {true_lower_bound}"
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
