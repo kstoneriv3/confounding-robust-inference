@@ -4,8 +4,8 @@ from cri.policies import ATEPolicy, GaussianPolicy, LogisticPolicy
 
 
 def test_ate_policy() -> None:
-    policy = ATEPolicy(0, 1)
-    T = torch.as_tensor([0, 1])
+    policy = ATEPolicy(1, 0)
+    T = torch.arange(2)
     X = torch.arange(2).reshape(2, 1)
     prob = torch.as_tensor([-1, 1])
     assert all(policy.prob(T, X) == prob)

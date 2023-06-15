@@ -1,9 +1,9 @@
-from typing import Any
+from typing import Any, Protocol
 
 import torch
 
 
-class BasePolicy:
+class BasePolicy(Protocol):
     """Template of policy used in CRI."""
 
     def sample(self, X: torch.Tensor) -> torch.Tensor:
@@ -43,7 +43,9 @@ class OnehotPolicy(BasePolicy):
         return torch.as_tensor([self.treatment] * X.shape[0])
 
     def prob(self, T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
-        return torch.ones(X.shape[0])
+        ret = torch.zeros(X.shape[0])
+        ret[T == self.treatment] = 1.0
+        return ret
 
 
 class PolicyDifference(BasePolicy):
@@ -54,9 +56,7 @@ class PolicyDifference(BasePolicy):
         self.base_policy = base_policy
 
     def prob(self, T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
-        ret = torch.ones_like(T)
-        ret[T == 0] = -1
-        return ret
+        return self.target_policy.prob(T, X) - self.base_policy.prob(T, X)
 
 
 class ATEPolicy(PolicyDifference):
@@ -66,6 +66,9 @@ class ATEPolicy(PolicyDifference):
         target_policy = OnehotPolicy(target_treatment)
         base_policy = OnehotPolicy(base_treatment)
         super().__init__(target_policy, base_policy)
+
+    def sample(self, X: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
 
 
 class GaussianPolicy(BasePolicy):

@@ -772,9 +772,8 @@ class DualKCMCPolicyLearner(BaseEstimator):
 
         def f_conj_cp(v: cp.Expression) -> cp.Expression:
             # operator * is dot product in cvxpy
-            return (
-                cp.multiply(0.5 * (b_w_tilde_np - a_w_tilde_np), cp.abs(v))
-                + cp.multiply(0.5 * (b_w_tilde_np + a_w_tilde_np), v)
+            return cp.multiply(0.5 * (b_w_tilde_np - a_w_tilde_np), cp.abs(v)) + cp.multiply(
+                0.5 * (b_w_tilde_np + a_w_tilde_np), v
             )
 
         # For avoiding user warning about multiplication operator with `*` and `@`
