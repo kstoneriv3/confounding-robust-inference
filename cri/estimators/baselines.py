@@ -1,5 +1,5 @@
 import warnings
-from typing import List
+from typing import List, Literal
 
 import cvxpy as cp
 import numpy as np
@@ -16,6 +16,9 @@ from cri.estimators.constraints import (
 from cri.estimators.misc import DEFAULT_KERNEL, OrthogonalBasis, assert_input, normalize_p_t
 from cri.policies import BasePolicy
 from cri.utils.types import as_ndarrays, as_tensor
+
+# one of default, ignore, error, always, module, once
+WARNINGS_MODE: Literal["default", "error", "ignore", "always", "module", "once"] = "ignore"
 
 
 class IPWEstimator(BaseEstimator):
@@ -112,7 +115,7 @@ class ZSBEstimator(BaseEstimator):
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            warnings.simplefilter(WARNINGS_MODE)
 
             w = cp.Variable(n)
 
@@ -199,7 +202,7 @@ class QBEstimator(BaseEstimator):
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            warnings.simplefilter(WARNINGS_MODE)
 
             w = cp.Variable(n)
 

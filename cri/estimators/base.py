@@ -1,9 +1,13 @@
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
+
 import torch
 
 from cri.policies import BasePolicy
 
 
-class BaseEstimator:
+class BaseEstimator(Protocol):
     def fit(
         self,
         Y: torch.Tensor,
@@ -11,7 +15,7 @@ class BaseEstimator:
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-    ) -> "BaseEstimator":
+    ) -> BaseEstimator:
         """Solve the minimization problem for obtaining the lower bound for the given data.
 
         Args:
@@ -28,16 +32,18 @@ class BaseEstimator:
         """Calculate the lower bound obtained by fit method."""
         raise NotImplementedError
 
+
+@runtime_checkable
+class BaseKCMCEstimator(BaseEstimator, Protocol):
     def predict_dual(
         self,
         Y: torch.Tensor,
         T: torch.Tensor,
         X: torch.Tensor,
         p_t: torch.Tensor,
-        policy: BasePolicy,
     ) -> torch.Tensor:
         """Calculate the dual objective value of the minimization problem for the lower bound
-        for the given samples.
+        for individual samples of given data.
 
         Args:
             Y: Outcome variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
@@ -45,7 +51,6 @@ class BaseEstimator:
             X: Context variable. Its dtype must be cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
             p_t: Nominal propensity p_obs(t|x). Its dtype must be
                 cri.types._DEFAULT_TORCH_FLOAT_DTYPE.
-            policy: Policy to be evaluated
 
         Returns:
             Lower bound estimate obtained by solving the dual problem

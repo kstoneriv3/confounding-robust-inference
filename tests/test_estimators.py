@@ -1,4 +1,5 @@
-from typing import NamedTuple, Type
+from dataclasses import dataclass
+from typing import Type
 
 import numpy as np
 import pytest
@@ -9,6 +10,7 @@ from cri.data import SyntheticDataBinary, SyntheticDataContinuous
 from cri.estimators import (
     BaseEstimator,
     DualKCMCEstimator,
+    DualKCMCPolicyLearner,
     DualNCMCEstimator,
     GPKCMCEstimator,
     HajekEstimator,
@@ -33,7 +35,8 @@ D = 3
 BETA = as_tensor([0, 0.5, -0.5, 0, 0])
 
 
-class EstimatorSpec(NamedTuple):
+@dataclass
+class EstimatorSpec:
     estimator_cls: Type[BaseEstimator]
     parameters: list[str]
     valid_const_type: list[str]
@@ -42,52 +45,42 @@ class EstimatorSpec(NamedTuple):
 
 ESTIMATOR_SPECS: list[EstimatorSpec] = [
     EstimatorSpec(
-        estimator_cls=DualKCMCEstimator,
-        parameters=["const_type", "gamma", "Gamma", "D"],
-        valid_const_type=DUAL_FEASIBLE_CONSTRAINT_TYPES,
-        supports_continuous_action_space=True,
+        DualKCMCEstimator,
+        ["const_type", "gamma", "Gamma", "D"],
+        DUAL_FEASIBLE_CONSTRAINT_TYPES,
+        True,
     ),
     EstimatorSpec(
-        estimator_cls=DualNCMCEstimator,
-        parameters=["const_type", "gamma", "Gamma"],
-        valid_const_type=DUAL_FEASIBLE_CONSTRAINT_TYPES,
-        supports_continuous_action_space=True,
+        DualNCMCEstimator,
+        ["const_type", "gamma", "Gamma"],
+        DUAL_FEASIBLE_CONSTRAINT_TYPES,
+        True,
     ),
     EstimatorSpec(
-        estimator_cls=GPKCMCEstimator,
-        parameters=["const_type", "gamma", "Gamma", "D"],
-        valid_const_type=CONSTRAINT_TYPES,
-        supports_continuous_action_space=True,
+        GPKCMCEstimator,
+        ["const_type", "gamma", "Gamma", "D"],
+        CONSTRAINT_TYPES,
+        True,
+    ),
+    EstimatorSpec(HajekEstimator, [], [], False),
+    EstimatorSpec(IPWEstimator, [], [], True),
+    EstimatorSpec(
+        KCMCEstimator,
+        ["const_type", "gamma", "Gamma", "D"],
+        CONSTRAINT_TYPES,
+        True,
     ),
     EstimatorSpec(
-        estimator_cls=HajekEstimator,
-        parameters=[],
-        valid_const_type=[],
-        supports_continuous_action_space=False,
+        QBEstimator,
+        ["const_type", "Gamma", "D"],
+        ["Tan_box", "lr_box"],
+        True,
     ),
     EstimatorSpec(
-        estimator_cls=IPWEstimator,
-        parameters=[],
-        valid_const_type=[],
-        supports_continuous_action_space=True,
-    ),
-    EstimatorSpec(
-        estimator_cls=KCMCEstimator,
-        parameters=["const_type", "gamma", "Gamma", "D"],
-        valid_const_type=CONSTRAINT_TYPES,
-        supports_continuous_action_space=True,
-    ),
-    EstimatorSpec(
-        estimator_cls=QBEstimator,
-        parameters=["const_type", "Gamma", "D"],
-        valid_const_type=["Tan_box", "lr_box"],
-        supports_continuous_action_space=True,
-    ),
-    EstimatorSpec(
-        estimator_cls=ZSBEstimator,
-        parameters=["const_type", "Gamma"],
-        valid_const_type=["Tan_box", "lr_box"],
-        supports_continuous_action_space=False,
+        ZSBEstimator,
+        ["const_type", "Gamma"],
+        ["Tan_box", "lr_box"],
+        False,
     ),
 ]
 ESTIMATOR_NAMES = [spec.estimator_cls.__name__ for spec in ESTIMATOR_SPECS]
@@ -98,6 +91,10 @@ DATA = {
 DATA_LARGE = {
     "binary": SyntheticDataBinary().sample(2 * N_SAMPLES),
     "continuous": SyntheticDataContinuous().sample(2 * N_SAMPLES),
+}
+DATA_EXTRA_LARGE = {
+    "binary": SyntheticDataBinary().sample(4 * N_SAMPLES),
+    "continuous": SyntheticDataContinuous().sample(4 * N_SAMPLES),
 }
 POLICIES = {
     "binary": LogisticPolicy(BETA),
@@ -258,13 +255,15 @@ def test_true_lower_bound(
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
     estimator = estimator_factory(spec, const_type, Gamma=1.5)
     estimator.fit(Y[:30], T[:30], X[:30], p_t[:30], policy)
-    out_of_fit_est = estimator.predict_dual(Y[30:], T[30:], X[30:], p_t[30:], policy)
+    out_of_fit_est = estimator.predict_dual(  # type: ignore[attr-defined]
+        Y[30:], T[30:], X[30:], p_t[30:]
+    ).mean()
 
     true_lower_bound = TRUE_LOWER_BOUND[data_and_policy_type]
     assert out_of_fit_est <= true_lower_bound  # This holds only in expectation or sample size limit
 
 
-'''
+@pytest.mark.skip("Not used for now.")
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
 def test_augment_data(
@@ -280,13 +279,14 @@ def test_augment_data(
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
     estimator.fit(Y, T, X, p_t, policy)
-    estimator_arg = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3, should_augment_data=True)
+    estimator_arg = KCMCEstimator(
+        const_type, gamma=0.02, Gamma=1.5, D=3, should_augment_data=True
+    )  # type: ignore
     estimator_arg.fit(Y, T, X, p_t, policy)
     losses, scores = estimator._get_dual_loss_and_jacobian()
     losses_aug, scores_aug = estimator._get_dual_loss_and_jacobian()
     assert torch.allclose(losses, losses_aug, rtol=1e-1)
     assert torch.allclose(scores, scores_aug, rtol=1e-1)
-'''
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
@@ -302,7 +302,7 @@ def test_strong_duality(
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
     primal = estimator.fit(Y, T, X, p_t, policy).predict()
-    dual = estimator.predict_dual(Y, T, X, p_t, policy)
+    dual = estimator.predict_dual(Y, T, X, p_t).mean()
     assert dual <= primal + 1e-5
     assert torch.isclose(dual, primal, atol=1e-5)
 
@@ -419,7 +419,7 @@ def test_gic(
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
-@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
 def test_ci(
     data_and_policy_type: str,
     const_type: str,
@@ -428,8 +428,42 @@ def test_ci(
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
     estimator.fit(Y, T, X, p_t, policy)
-    gic = estimator.predict_gic()
+    est = estimator.predict()
     low, high = estimator.predict_ci(alpha=1e-2)
+
+    assert low < high
+    assert low < est, f"low = {low} is expected to be smaller than est = {est}"
+    assert est < high, f"high = {high} is expected to be larger than est = {est}"
+
+    Y, T, X, _, p_t, _ = DATA_EXTRA_LARGE[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator_ = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator_.fit(Y, T, X, p_t, policy)
+    est_ = estimator_.predict()
+    low_, high_ = estimator_.predict_ci(alpha=1e-2)
+
+    assert low_ < high_
+    assert low_ < est_, f"low_ = {low_} is expected to be smaller than est_ = {est_}"
+    assert est_ < high_, f"high_ = {high_} is expected to be larger than est_ = {est_}"
+
+    assert high_ - low_ < high - low, (
+        f"Confidence interval [{low_}, {high_}] for larger data should be tighter than "
+        f"the confidence interval [{low}, {high}] for smaller data."
+    )
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
+def test_ci_second_order(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit(Y, T, X, p_t, policy)
+    gic = estimator.predict_gic()
+    low, high = estimator.predict_ci(alpha=1e-2, consider_second_order=True)
 
     assert low < high
     assert low < gic, f"low = {low} is expected to be smaller than gic = {gic}"
@@ -437,10 +471,10 @@ def test_ci(
 
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
-    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
-    estimator.fit(Y, T, X, p_t, policy)
-    gic_ = estimator.predict_gic()
-    low_, high_ = estimator.predict_ci(alpha=1e-2)
+    estimator_ = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator_.fit(Y, T, X, p_t, policy)
+    gic_ = estimator_.predict_gic()
+    low_, high_ = estimator_.predict_ci(alpha=1e-2, consider_second_order=True)
 
     assert low_ < high_
     assert low_ < gic_, f"low_ = {low_} is expected to be smaller than gic_ = {gic_}"
@@ -488,3 +522,26 @@ def test_hajek_estimator() -> None:
     p_t_normalized = normalize_p_t(p_t, T)
     ipw = IPWEstimator().fit(Y, T, X, p_t_normalized, policy).predict()
     assert torch.isclose(hajek, ipw)
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box"])
+def test_dual_kcmc_policy_learner(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit(Y, T, X, p_t, policy)
+    est = estimator.predict()
+    low, high = estimator.predict_ci(alpha=1e-2)
+
+    learner = DualKCMCPolicyLearner(const_type, Gamma=1.5, D=2)
+    learner.fit(Y, T, X, p_t, [policy, policy])
+    est_ = learner.predict()
+    low_, high_ = learner.predict_ci(alpha=1e-2)
+
+    assert torch.isclose(est, est_)
+    assert torch.isclose(low, low_)
+    assert torch.isclose(high, high_)

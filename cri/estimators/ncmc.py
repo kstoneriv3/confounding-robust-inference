@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Type
 
 import torch
@@ -56,9 +58,14 @@ class DualNCMCEstimator(BaseEstimator):
         optimizer_kwargs: dict[str, Any] | None = None,
         n_steps: int = 30,
         batch_size: int = 1024,
-    ) -> "BaseEstimator":
+    ) -> DualNCMCEstimator:
         assert_input(Y, T, X, p_t)
-        pi = policy.prob(T, X)
+        self.Y = Y
+        self.T = T
+        self.X = X
+        self.p_t = p_t
+        self.policy = policy
+        self.pi = policy.prob(T, X)
         TX = torch.concat([T[:, None], X], dim=1).float()  # use float 32 for NN
         self.eta_nn, self.log_eta_f = get_multipliers(TX.shape[1], self.n_hidden, self.n_layers)
 
@@ -75,11 +82,11 @@ class DualNCMCEstimator(BaseEstimator):
 
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
-            eta_cmc = self.eta_nn(TX[train_idx])[:, 0] * pi[train_idx] / p_t[train_idx]
+            eta_cmc = self.eta_nn(TX[train_idx])[:, 0] * self.pi[train_idx] / p_t[train_idx]
             objective = -get_dual_objective(
                 Y[train_idx],
                 p_t[train_idx],
-                pi[train_idx],
+                self.pi[train_idx],
                 eta_cmc,
                 self.eta_f,
                 self.gamma,
@@ -95,11 +102,11 @@ class DualNCMCEstimator(BaseEstimator):
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
             with torch.no_grad():
-                eta_cmc = self.eta_nn(TX[val_idx])[:, 0] * pi[val_idx] / p_t[val_idx]
+                eta_cmc = self.eta_nn(TX[val_idx])[:, 0] * self.pi[val_idx] / p_t[val_idx]
                 lower_bounds[val_idx] = get_dual_objective(
                     Y[val_idx],
                     p_t[val_idx],
-                    pi[val_idx],
+                    self.pi[val_idx],
                     eta_cmc,
                     self.eta_f,
                     self.gamma,
@@ -118,11 +125,10 @@ class DualNCMCEstimator(BaseEstimator):
         T: torch.Tensor,
         X: torch.Tensor,
         p_t: torch.Tensor,
-        policy: BasePolicy,
     ) -> torch.Tensor:
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
-        pi = policy.prob(T, X)
+        pi = self.policy.prob(T, X)
         TX = torch.concat([T[:, None], X], dim=1).float()  # use float32 for NN
         eta_cmc = self.eta_nn(TX)[:, 0] * pi / p_t
         dual = get_dual_objective(

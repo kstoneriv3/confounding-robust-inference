@@ -124,6 +124,17 @@ def get_f_conjugate(
     return f_conj
 
 
+def get_normal_ci(samples: torch.Tensor, alpha: float) -> tuple[torch.Tensor, torch.Tensor]:
+    assert len(samples.shape) == 1
+    n = len(samples)
+    mean = torch.mean(samples)
+    std = torch.std(samples)  # unbiased estimate
+    asymp_dist = torch.distributions.Normal(mean, std / n)  # type: ignore
+    low = asymp_dist.icdf(torch.as_tensor(alpha / 2.0))  # type: ignore
+    high = asymp_dist.icdf(torch.as_tensor(1.0 - alpha / 2.0))  # type: ignore
+    return low, high
+
+
 class OrthogonalBasis:
     """Calculate kernel PCA's (empirically) orthogonal features and constant feature (intercept)."""
 

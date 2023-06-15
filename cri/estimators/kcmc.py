@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 import warnings
-from typing import Any, Type
+from typing import Any, Literal, Sequence, Type
 
 import cvxpy as cp
 import numpy as np
 import torch
-from scipy.stats import gaussian_kde, norm
+from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.preprocessing import StandardScaler
 from torch.autograd.functional import hessian, jacobian
 from torch.optim import SGD, Optimizer
 
-from cri.estimators.base import BaseEstimator
+from cri.estimators.base import BaseEstimator, BaseKCMCEstimator
 from cri.estimators.constraints import (
     get_a_b,
     get_box_constraints,
@@ -26,9 +28,12 @@ from cri.estimators.misc import (
     OrthogonalBasis,
     assert_input,
     get_dual_objective,
+    get_normal_ci,
 )
 from cri.policies import BasePolicy
 from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor, as_tensors
+
+WARNINGS_MODE: Literal["default", "error", "ignore", "always", "module", "once"] = "ignore"
 
 
 def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
@@ -58,14 +63,14 @@ def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray) -> np.ndarray:
     return Psi
 
 
-class KCMCEstimator(BaseEstimator):
+class KCMCEstimator(BaseKCMCEstimator):
     """Kernel Conditional Moment Constraints (KCMC) Estimator.
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
             "inverse_KL", "squared_Hellinger", "Pearson_chi_squared",
             "Neyman_chi_squared", and "total_variation".
-        gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
+        gamma: Sensitivity parameter for f-divergence constraint satisfying gamma >= 0.0.
             When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
@@ -95,6 +100,13 @@ class KCMCEstimator(BaseEstimator):
         self.D = D
         self.kernel = kernel
 
+    def _warn_asymptotics(self) -> None:
+        warnings.warn(
+            "Current implementation of the asymptotics are known to be unstable, "
+            "because of the difficulty of estimating the covariance and Hessian "
+            "matrices involved. Please use the features with caution."
+        )
+
     def fit(
         self,
         Y: torch.Tensor,
@@ -102,7 +114,7 @@ class KCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-    ) -> "BaseEstimator":
+    ) -> KCMCEstimator:
         assert_input(Y, T, X, p_t)
         self.Y = Y
         self.T = T
@@ -123,7 +135,7 @@ class KCMCEstimator(BaseEstimator):
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            warnings.simplefilter(WARNINGS_MODE)
 
             w = cp.Variable(n)
 
@@ -162,11 +174,10 @@ class KCMCEstimator(BaseEstimator):
         T: torch.Tensor,
         X: torch.Tensor,
         p_t: torch.Tensor,
-        policy: BasePolicy,
     ) -> torch.Tensor:
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
-        pi = policy.prob(T, X)
+        pi = self.policy.prob(T, X)
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
@@ -176,10 +187,11 @@ class KCMCEstimator(BaseEstimator):
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
-        return dual.mean()
+        return dual
 
     def predict_gic(self) -> torch.Tensor:
         """Calculate the Generalized Information Criterion (GIC) of the lower bound."""
+        self._warn_asymptotics()
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
         V = scores.T @ scores / n
@@ -189,20 +201,26 @@ class KCMCEstimator(BaseEstimator):
         return gic
 
     def predict_ci(
-        self, n_boot: int = 10000, alpha: float = 0.05
+        self, n_boot: int = 10000, alpha: float = 0.05, consider_second_order: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
-
-        Bootstrap is used for calculating the percentile of the asymptotic distribution.
 
         Args:
             n_boot: The number of Monte Carlo samples used to calculate the percentile of the
                 asymptotic distribution by bootstraping.
             alpha: Significance level of used for the confidence interval.
+            consider_second_order: If True, consider the second order asymptotics similarly to GIC.
+                When second order asymptotics is considered, Monte Carlo sampling is used for
+                calculating the percentile of the asymptotic distribution.
         """
-        boot_lb = self._bootstrap_lower_bounds(n_boot)
-        low = torch.quantile(boot_lb, alpha / 2)
-        high = torch.quantile(boot_lb, 1 - alpha / 2)
+        if consider_second_order:
+            self._warn_asymptotics()
+            boot_lb = self._bootstrap_lower_bounds(n_boot)
+            low = torch.quantile(boot_lb, alpha / 2)
+            high = torch.quantile(boot_lb, 1 - alpha / 2)
+        else:
+            lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
+            low, high = get_normal_ci(lb_samples, alpha)
         return low, high
 
     def _bootstrap_lower_bounds(self, n_boot: int) -> torch.Tensor:
@@ -216,11 +234,13 @@ class KCMCEstimator(BaseEstimator):
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
         unif_samples = en.draw(n_boot, dtype=self.Y.dtype)
-        normal_samples = torch.distributions.Normal(0, 1).icdf(unif_samples)
-        boot_l_s =  normal_samples @ torch.cholesky(V_joint / n).mT
+        normal_samples = torch.distributions.Normal(0, 1).icdf(unif_samples)  # type: ignore
+        boot_l_s = normal_samples @ torch.linalg.cholesky(V_joint / n).mT
         boot_l_s[:, 0] += self.fitted_lower_bound
         boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta.shape[0]], dim=1)
-        boot_lb = boot_losses[:, 0] + torch.einsum("mi,ij,mj->m", boot_scores, J_inv, boot_scores) / 2
+        boot_lb = (
+            boot_losses[:, 0] + torch.einsum("mi,ij,mj->m", boot_scores, J_inv, boot_scores) / 2
+        )
         return boot_lb
 
     def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
@@ -254,8 +274,8 @@ class KCMCEstimator(BaseEstimator):
             """
             should_augment_data: If True, use argumented data for estimation of hessian of the dual
                 loss and asymptotic variance of its gradient. Empirically, this technique sometimes
-                helps to stabilize the estimation of these quantities. For data augmentation, a kernel
-                density estimator is used.
+                helps to stabilize the estimation of these quantities. For data augmentation, a
+                kernel density estimator is used.
             """
         else:
             # Argument data to get non-singular estimates of the Hessian and the Jacobian
@@ -294,7 +314,7 @@ class KCMCEstimator(BaseEstimator):
         '''
         return loss
 
-    '''
+    """
     # TODO: Unsupport this and support gic for subset of constraints.
     def augment_data(
         self, n: int, seed: int = 0
@@ -338,7 +358,7 @@ class KCMCEstimator(BaseEstimator):
         Y_arg, T_arg, X_arg, p_t_arg = as_tensors(Y_aug_np, T_aug_np, X_aug_np, p_t_aug_np)
         pi_arg = self.policy.prob(T_arg, X_arg)
         return Y_arg, T_arg, X_arg, p_t_arg, pi_arg
-    '''
+    """
 
     @property
     def eta(self) -> torch.Tensor:
@@ -395,13 +415,13 @@ class KCMCEstimator(BaseEstimator):
         return loss, J
 
 
-class DualKCMCEstimator(BaseEstimator):
+class DualKCMCEstimator(BaseKCMCEstimator):
     """Dual Kernel Conditional Moment Constraints (KCMC) Estimator.
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
             "inverse_KL", "Pearson_chi_squared".
-        gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
+        gamma: Sensitivity parameter for f-divergence constraint satisfying gamma >= 0.0.
             When gamma == 0.0, QB estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
@@ -445,7 +465,7 @@ class DualKCMCEstimator(BaseEstimator):
         n_steps: int = 50,
         batch_size: int = 1024,
         seed: int = 0,
-    ) -> "BaseEstimator":
+    ) -> DualKCMCEstimator:
         assert_input(Y, T, X, p_t)
         self.Y = Y
         self.T = T
@@ -519,7 +539,6 @@ class DualKCMCEstimator(BaseEstimator):
         T: torch.Tensor,
         X: torch.Tensor,
         p_t: torch.Tensor,
-        policy: BasePolicy,
     ) -> torch.Tensor:
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
@@ -527,26 +546,26 @@ class DualKCMCEstimator(BaseEstimator):
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
         Psi_np = apply_black_magic(Psi_np, p_t_np)
-        pi = policy.prob(T, X)
+        pi = self.policy.prob(T, X)
         eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
         dual = get_dual_objective(
             Y, p_t, pi, eta_cmc, self.eta_f, self.gamma, self.Gamma, self.const_type
         )
-        return dual.mean()
+        return dual
 
     @property
     def eta_f(self) -> torch.Tensor:
         return self.log_eta_f.exp()
 
 
-class GPKCMCEstimator(BaseEstimator):
+class GPKCMCEstimator(BaseKCMCEstimator):
     """Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator.
 
     Args:
         const_type: Type of the constraint used. It must be one of "box", "KL", "inverse_KL",
             "squared_Hellinger", "Pearson_chi_squared", "Neyman_chi_squared", and
             "total_variation".
-        gamma: Sensitivity parameter for f-divergence constraint satisfying Gamma >= 1.0.
+        gamma: Sensitivity parameter for f-divergence constraint satisfying gamma >= 0.0.
             When gamma == 0.0, GP-KCMC estimator is equivalent to the IPW estimator.
         Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
             When Gamma == 1.0, GP-KCMC estimator is equivalent to the IPW estimator.
@@ -638,7 +657,7 @@ class GPKCMCEstimator(BaseEstimator):
         X: torch.Tensor,
         p_t: torch.Tensor,
         policy: BasePolicy,
-    ) -> "BaseEstimator":
+    ) -> GPKCMCEstimator:
         assert_input(Y, T, X, p_t)
         self.Y = Y
         self.T = T
@@ -657,7 +676,7 @@ class GPKCMCEstimator(BaseEstimator):
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            warnings.simplefilter(WARNINGS_MODE)
 
             w = cp.Variable(n)
 
@@ -684,3 +703,157 @@ class GPKCMCEstimator(BaseEstimator):
 
     def predict(self) -> torch.Tensor:
         return self.fitted_lower_bound
+
+    def predict_dual(
+        self,
+        Y: torch.Tensor,
+        T: torch.Tensor,
+        X: torch.Tensor,
+        p_t: torch.Tensor,
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class DualKCMCPolicyLearner(BaseEstimator):
+    """Dual Kernel Conditional Moment Constraints (KCMC) policy learner for mixed policy.
+
+    Args:
+        const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box".
+        Gamma: Sensitivity parameter for box constraints satisfying Gamma >= 1.0.
+            When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
+        D: Dimension of the low-rank approximation used in the kernel quantile regression.
+        kernel: Kernel used in the low-rank kernel quantile regression.
+    """
+
+    def __init__(
+        self,
+        const_type: str,
+        Gamma: float | None = None,
+        D: int = 30,
+        kernel: Kernel | None = None,
+    ) -> None:
+        assert const_type in ("Tan_box", "lr_box"), f"{const_type} is not supported."
+        assert Gamma is not None and Gamma >= 1
+        # For box constraint, it is convenient to assume gamma = 0.0, as eta_f -> +0
+        # in the dual problem.
+        self.const_type = const_type
+        self.Gamma = Gamma if Gamma is not None else 1.0
+        self.D = D
+        self.kernel = kernel
+        self.eta_kcmc = torch.zeros(D + 2, dtype=_DEFAULT_TORCH_FLOAT_DTYPE, requires_grad=True)
+
+    def fit(
+        self,
+        Y: torch.Tensor,
+        T: torch.Tensor,
+        X: torch.Tensor,
+        p_t: torch.Tensor,
+        policies: Sequence[BasePolicy],  # type: ignore[override]
+    ) -> DualKCMCPolicyLearner:
+        assert_input(Y, T, X, p_t)
+        assert len(policies) >= 1
+        self.Y = Y
+        self.T = T
+        self.X = X
+        self.p_t = p_t
+        self.policies = policies
+        self.pi_list = [policy.prob(T, X) for policy in policies]
+
+        Y_np, T_np, X_np, p_t_np, *pi_np_list = as_ndarrays(Y, T, X, p_t, *self.pi_list)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+
+        a_w_tilde, b_w_tilde = self.get_a_b_w_tilde(p_t)
+        a_w_tilde_np, b_w_tilde_np = as_ndarrays(a_w_tilde, b_w_tilde)
+
+        def f_conj_cp(v: cp.Expression) -> cp.Expression:
+            # operator * is dot product in cvxpy
+            return (
+                cp.multiply(0.5 * (b_w_tilde_np - a_w_tilde_np), cp.abs(v))
+                + cp.multiply(0.5 * (b_w_tilde_np + a_w_tilde_np), v)
+            )
+
+        # For avoiding user warning about multiplication operator with `*` and `@`
+        with warnings.catch_warnings():
+            warnings.simplefilter(WARNINGS_MODE)
+
+            eta_kcmc = cp.Variable(self.Psi_np.shape[1])
+            beta = cp.Variable(len(policies))
+
+            eta_cmc = self.Psi_np @ eta_kcmc  # This is still a matrix multiplication
+            pi_cp = cp.sum([b * pi_np for b, pi_np in zip(beta, pi_np_list)])
+            dual = cp.sum(eta_cmc - f_conj_cp(eta_cmc - cp.multiply(Y_np / p_t_np, pi_cp)))
+
+            objective = cp.Maximize(dual)
+            constraints: list[cp.Constraint] = [
+                np.zeros(len(policies)) <= beta,
+                cp.sum(beta) == 1.0,
+            ]
+            problem = cp.Problem(objective, constraints)
+            solvers = [cp.MOSEK, cp.ECOS, cp.SCS]
+            try_solvers(problem, solvers)
+
+        self.eta_kcmc = torch.zeros_like(p_t[: self.Psi_np.shape[1]])
+        self.eta_kcmc[:] = as_tensor(eta_kcmc.value)
+        self.beta = torch.zeros_like(p_t[: len(policies)])
+        self.beta[:] = as_tensor(beta.value)
+        return self
+
+    def predict(self) -> torch.Tensor:
+        return self.predict_dual(self.Y, self.T, self.X, self.p_t).mean()
+
+    def predict_dual(
+        self,
+        Y: torch.Tensor,
+        T: torch.Tensor,
+        X: torch.Tensor,
+        p_t: torch.Tensor,
+    ) -> torch.Tensor:
+        assert_input(Y, T, X, p_t)
+        T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+        Psi_np = self.Psi_np_pipeline.transform(TX_np)
+        Psi_np = apply_black_magic(Psi_np, p_t_np)
+        eta_cmc = as_tensor(Psi_np) @ self.eta_kcmc
+        pi = torch.sum(
+            torch.stack([b * policy.prob(T, X) for b, policy in zip(self.beta, self.policies)]),
+            dim=0,
+        )  # mixed policy prob
+        return self.dual_objective(Y, p_t, pi, eta_cmc)
+
+    def predict_ci(self, alpha: float) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calculate confidence interval of the lower bound.
+
+        Args:
+            alpha: Significance level of used for the confidence interval.
+        """
+        lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
+        low, high = get_normal_ci(lb_samples, alpha)
+        return low, high
+
+    def dual_objective(
+        self,
+        Y: torch.Tensor,
+        p_t: torch.Tensor,
+        pi: torch.Tensor,
+        eta_cmc: torch.Tensor,
+    ) -> torch.Tensor:
+        a_w_tilde, b_w_tilde = self.get_a_b_w_tilde(p_t)
+
+        def f_conj(v: torch.Tensor) -> torch.Tensor:
+            return torch.where(v < 0.0, a_w_tilde * v, b_w_tilde * v)
+
+        dual = eta_cmc - f_conj(eta_cmc - Y * pi / p_t)
+        return dual
+
+    def get_a_b_w_tilde(self, p_t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        (p_t_np,) = as_ndarrays(p_t)
+        a_np, b_np = get_a_b(p_t_np, self.Gamma, self.const_type)
+        a, b = as_tensors(a_np, b_np)
+        a_w_tilde = a * p_t
+        b_w_tilde = b * p_t
+        return a_w_tilde, b_w_tilde
