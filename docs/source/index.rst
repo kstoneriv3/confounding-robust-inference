@@ -1,5 +1,5 @@
-Welcome to CRI's documentation!
-===============================
+Welcome to confounding-robust-inference's documentation!
+========================================================
 
 **Confounding robust inference with conditional moment constraints.**
 

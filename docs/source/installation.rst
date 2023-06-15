@@ -1,7 +1,7 @@
 Installation
 ============
 
-To use CRI, install the package via pip:
+To use confounding-robust-inference, install the package via pip:
 
 .. code-block:: bash
 
@@ -11,6 +11,6 @@ If you would like to develop the installed package, download the repository and 
 
 .. code-block:: bash
 
-    $ git clone git@github.com:cri/cri.git
-    $ cd ./cri
+    $ git clone git@github.com:kstoneriv3/confounding-robust-inference.git
+    $ cd ./confounding-robust-inference
     $ pip install -e .

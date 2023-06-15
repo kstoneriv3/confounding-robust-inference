@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../../cri/'))
 from cri.version import __version__
 
-project = 'CRI'
+project = 'confounding-robust-inference'
 copyright = '2023, Kei Ishikawa'
 author = 'Kei Ishikawa'
 release = __version__
