@@ -28,13 +28,13 @@ class TorchQuantileRegressor:
         >>>
         >>> from sklearn.linear_model import QuantileRegressor
         >>> from confounding_robust_inference.utils.quantile_regression import (
-            TorchQuantileRegressor
-        )
+        ...     TorchQuantileRegressor
+        ... )
         >>> qr = QuantileRegressor(
         ...     quantile=0.4, alpha=0., fit_intercept=False, solver='highs'
         ... ).fit(X, Y)
-        >>> fqr = TorchQuantileRegressor(quantile=0.4).fit(tX, tY)
-        >>> assert torch.allclose(torch.as_tensor(qr.coef_), fqr.coef_, atol=0.1)
+        >>> tqr = TorchQuantileRegressor(quantile=0.4).fit(tX, tY)
+        >>> assert torch.allclose(torch.as_tensor(qr.coef_), tqr.coef_, atol=0.1)
     """
 
     def __init__(self, quantile: float) -> None:
