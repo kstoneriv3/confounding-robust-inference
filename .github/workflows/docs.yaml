@@ -3,9 +3,9 @@ on: push
   branches:
     - main
   paths:
-    - confounding_robust_inference
-    - docs
-    - examples
+    - 'confounding_robust_inference/**'
+    - 'docs/**'
+    - 'examples/**'
 permissions:
     contents: write
 jobs:
