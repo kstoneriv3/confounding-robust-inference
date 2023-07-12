@@ -19,6 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_copybutton sphinx_rtd_theme nbsphinx nbsphinx_link
+          pip install --no-dependencies -e .
       - name: Sphinx build
         run: |
           make docs
