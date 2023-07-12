@@ -2,6 +2,6 @@ Examples
 ========
 
 .. toctree::
-   :hidden:
+   :maxdepth: 2
 
    visualize_sharpness
