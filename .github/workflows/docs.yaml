@@ -16,9 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
-      - name: Sphinx build
-        run: tox -e docs
-          make docs
+      - name: Install tox
+        run:
+          pip install tox
+      - name: Sphinx build with tox
+        run:
+          tox -e docs
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
