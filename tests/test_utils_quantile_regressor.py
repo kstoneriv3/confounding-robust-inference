@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from sklearn.linear_model import QuantileRegressor
 
-from cri.utils.quantile_regression import TorchQuantileRegressor
-from cri.utils.types import as_tensor
+from confounding_robust_inference.utils.quantile_regression import TorchQuantileRegressor
+from confounding_robust_inference.utils.types import as_tensor
 
 
 def test_fast_quantile_regressor() -> None:

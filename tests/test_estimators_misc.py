@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from cri.estimators.misc import get_a_b, normalize_p_t
+from confounding_robust_inference.estimators.misc import get_a_b, normalize_p_t
 
 
 def test_normalized_p_t() -> None:

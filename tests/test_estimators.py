@@ -6,8 +6,8 @@ import pytest
 import torch
 from torch.optim import Adam
 
-from cri.data import SyntheticDataBinary, SyntheticDataContinuous
-from cri.estimators import (
+from confounding_robust_inference.data import SyntheticDataBinary, SyntheticDataContinuous
+from confounding_robust_inference.estimators import (
     BaseEstimator,
     DualKCMCEstimator,
     DualKCMCPolicyLearner,
@@ -19,14 +19,18 @@ from cri.estimators import (
     QBEstimator,
     ZSBEstimator,
 )
-from cri.estimators.misc import (
+from confounding_robust_inference.estimators.misc import (
     CONSTRAINT_TYPES,
     DUAL_FEASIBLE_CONSTRAINT_TYPES,
     get_a_b,
     normalize_p_t,
 )
-from cri.policies import GaussianPolicy, LogisticPolicy
-from cri.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE, as_ndarrays, as_tensor
+from confounding_robust_inference.policies import GaussianPolicy, LogisticPolicy
+from confounding_robust_inference.utils.types import (
+    _DEFAULT_TORCH_FLOAT_DTYPE,
+    as_ndarrays,
+    as_tensor,
+)
 
 torch.random.manual_seed(0)
 

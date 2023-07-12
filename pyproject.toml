@@ -3,7 +3,7 @@ requires = ["setuptools >= 61.1.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["cri*"]
+include = ["confounding_robust_inference*"]
 
 [project]
 name = "confounding-robust-inference"
@@ -44,15 +44,17 @@ dev = [
     "sphinx",
     "sphinx-copybutton",
     "sphinx-rtd-theme",
+    "nbsphinx",
+    "nbsphinx-link",
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "cri.version.__version__"}
+version = {attr = "confounding_robust_inference.version.__version__"}
 
 [tool.black]
 line-length = 100
 target-version = ["py310"]
-src_paths = ["cri", "tests", "examples"]
+src_paths = ["confounding_robust_inference", "tests", "examples"]
  
 [tool.isort]
 profile = "black"
@@ -68,7 +70,7 @@ exclude = ["docs"]
 
 
 [tool.mypy]
-files = ["cri", "tests"]
+files = ["confounding_robust_inference", "tests"]
 python_version = "3.10"
 warn_unused_configs = true
 disallow_untyped_calls = true
@@ -88,10 +90,10 @@ testpaths = ["tests"]
 
 [[tool.mypy.overrides]]
 module = [
-    "cri.estimators.baselines",
-    "cri.estimators.constraints",
-    "cri.estimators.kcmc",
-    "cri.estimators.misc"
+    "confounding_robust_inference.estimators.baselines",
+    "confounding_robust_inference.estimators.constraints",
+    "confounding_robust_inference.estimators.kcmc",
+    "confounding_robust_inference.estimators.misc"
 ]
 disable_error_code = [
     "attr-defined",

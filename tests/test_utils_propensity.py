@@ -1,7 +1,7 @@
 import torch
 
-from cri.data import SyntheticDataBinary, SyntheticDataContinuous
-from cri.utils.propensity import (
+from confounding_robust_inference.data import SyntheticDataBinary, SyntheticDataContinuous
+from confounding_robust_inference.utils.propensity import (
     estimate_p_t_binary,
     estimate_p_t_bounded_continuous,
     estimate_p_t_continuous,

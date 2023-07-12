@@ -20,7 +20,7 @@ Citation
 .. toctree::
    :hidden:
 
-   tutorial
+   examples/index
 
 .. toctree::
    :maxdepth: 2

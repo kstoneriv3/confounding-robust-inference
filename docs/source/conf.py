@@ -8,8 +8,8 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../cri/'))
-from cri.version import __version__
+sys.path.insert(0, os.path.abspath('../../confounding_robust_inference/'))
+from confounding_robust_inference.version import __version__
 
 project = 'confounding-robust-inference'
 copyright = '2023, Kei Ishikawa'
@@ -20,6 +20,8 @@ release = __version__
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    'nbsphinx',
+    'nbsphinx_link',
     'sphinx.ext.autodoc', 
     'sphinx.ext.autosummary', 
     'sphinx.ext.doctest',

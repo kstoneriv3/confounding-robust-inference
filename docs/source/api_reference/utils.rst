@@ -1,28 +1,28 @@
-.. module:: cri.utils
+.. module:: confounding_robust_inference.utils
 
-cri.utils
-=========
+confounding_robust_inference.utils
+==================================
 
 
-cri.utils.quantile_regressor
-----------------------------
+confounding_robust_inference.utils.quantile_regressor
+-----------------------------------------------------
 A faster alternative to the QuantileRegressor of scikit-learn.
 
-.. automodule:: cri.utils.quantile_regression
+.. automodule:: confounding_robust_inference.utils.quantile_regression
    :members:
    :undoc-members:
 
-cri.utils.propensity
---------------------
+confounding_robust_inference.utils.propensity
+---------------------------------------------
 Estimation methods of nominal propensity p_obs(t|x) from data for different types of action spaces.
 
-.. automodule:: cri.utils.propensity
+.. automodule:: confounding_robust_inference.utils.propensity
    :members:
    :undoc-members:
 
-cri.utils.types
----------------
+confounding_robust_inference.utils.types
+----------------------------------------
 
-.. automodule:: cri.utils.types
+.. automodule:: confounding_robust_inference.utils.types
    :members:
    :undoc-members:

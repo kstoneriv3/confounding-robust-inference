@@ -1,34 +1,34 @@
-.. module:: cri.estimators
+.. module:: confounding_robust_inference.estimators
 
-cri.estimators
-==============
+confounding_robust_inference.estimators
+=======================================
 
 .. autosummary::
    :toctree: generated/
    :nosignatures:
 
-   cri.estimators.BaseEstimator
-   cri.estimators.IPWEstimator
-   cri.estimators.HajekEstimator
-   cri.estimators.ZSBEstimator
-   cri.estimators.QBEstimator
-   cri.estimators.KCMCEstimator
-   cri.estimators.GPKCMCEstimator
-   cri.estimators.DualKCMCEstimator
-   cri.estimators.DualNCMCEstimator
+   confounding_robust_inference.estimators.BaseEstimator
+   confounding_robust_inference.estimators.IPWEstimator
+   confounding_robust_inference.estimators.HajekEstimator
+   confounding_robust_inference.estimators.ZSBEstimator
+   confounding_robust_inference.estimators.QBEstimator
+   confounding_robust_inference.estimators.KCMCEstimator
+   confounding_robust_inference.estimators.GPKCMCEstimator
+   confounding_robust_inference.estimators.DualKCMCEstimator
+   confounding_robust_inference.estimators.DualNCMCEstimator
 
 
-cri.estimators.constraints
---------------------------
+confounding_robust_inference.estimators.constraints
+---------------------------------------------------
 
-.. automodule:: cri.estimators.constraints
+.. automodule:: confounding_robust_inference.estimators.constraints
    :members:
    :undoc-members:
 
 
-cri.estimators.misc
--------------------
+confounding_robust_inference.estimators.misc
+--------------------------------------------
 
-.. automodule:: cri.estimators.misc
+.. automodule:: confounding_robust_inference.estimators.misc
    :members:
    :undoc-members:

@@ -1,13 +1,13 @@
-.. module:: cri.policies
+.. module:: confounding_robust_inference.policies
 
-cri.policies
-============
+confounding_robust_inference.policies
+=====================================
 
 .. autosummary::
     :toctree: generated/
     :nosignatures:
 
-    cri.policies.ATEPolicy
-    cri.policies.LogisticPolicy
-    cri.policies.GaussianPolicy
-    cri.policies.BasePolicy
+    confounding_robust_inference.policies.ATEPolicy
+    confounding_robust_inference.policies.LogisticPolicy
+    confounding_robust_inference.policies.GaussianPolicy
+    confounding_robust_inference.policies.BasePolicy

@@ -3,7 +3,7 @@ from typing import Type
 import pytest
 import torch
 
-from cri.data import (
+from confounding_robust_inference.data import (
     BaseData,
     NLSDataDornGuo2022,
     SyntheticDataBinary,
@@ -11,7 +11,7 @@ from cri.data import (
     SyntheticDataKallusZhou2018,
     SyntheticDataKallusZhou2018Continuous,
 )
-from cri.policies import BasePolicy
+from confounding_robust_inference.policies import BasePolicy
 
 DATA_CLASSES = [
     SyntheticDataKallusZhou2018,

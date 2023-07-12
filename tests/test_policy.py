@@ -1,6 +1,6 @@
 import torch
 
-from cri.policies import ATEPolicy, GaussianPolicy, LogisticPolicy
+from confounding_robust_inference.policies import ATEPolicy, GaussianPolicy, LogisticPolicy
 
 
 def test_ate_policy() -> None:
