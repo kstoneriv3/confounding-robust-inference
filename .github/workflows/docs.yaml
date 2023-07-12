@@ -1,11 +1,12 @@
 name: Docs
-on: push
-  branches:
-    - main
-  paths:
-    - 'confounding_robust_inference/**'
-    - 'docs/**'
-    - 'examples/**'
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'confounding_robust_inference/**'
+      - 'docs/**'
+      - 'examples/**'
 permissions:
     contents: write
 jobs:
