@@ -4,7 +4,7 @@ import torch
 
 
 class BasePolicy(Protocol):
-    """Template of policy used in CRI."""
+    """Template of policy used in confounding-robust-inference."""
 
     def sample(self, X: torch.Tensor) -> torch.Tensor:
         """Sample T given X from the policy.

@@ -5,7 +5,7 @@
 # from the environment for the first two.
 SPHINXOPTS    = -W --keep-going
 SPHINXBUILD   = sphinx-build
-SPHINXPROJ    = CRI
+SPHINXPROJ    = confounding-robust-inference
 SOURCEDIR     = source
 BUILDDIR      = build
 
