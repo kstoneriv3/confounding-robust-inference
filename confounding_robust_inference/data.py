@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ class DataTuple(NamedTuple):
     p_t_xu: torch.Tensor | None
 
 
-class BaseData:
+class BaseData(Protocol):
     """Base class for data used in the numerical experiments."""
 
     def sample(self, n: int) -> DataTuple:
