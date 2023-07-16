@@ -6,7 +6,7 @@ Kernel Conditional Moment Constraints for Confounding Robust Inference
 [![Documentation](http://github.com/kstoneriv3/confounding_robust_inference/actions/workflows/docs.yaml/badge.svg)](https://github.com/kstoneriv3/confounding_robust_inference/actions/workflows/docs.yaml)
 [![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/kstoneriv3/confounding_robust_inferenc/LICENSE)
 
-This repository contains the experimental code the paper [Kernel Conditional Moment Constraints for Confounding Robust Inference](https://arxiv.org/abs/2302.13348).
+This repository contains the experimental code for the paper [Kernel Conditional Moment Constraints for Confounding Robust Inference](https://arxiv.org/abs/2302.13348).
 The core part of the code is provided as a python package `confounding-robust-inference` and the codes for the experiments can be found in the examples folder as jupyter notebooks.
 
 Installation
