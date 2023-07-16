@@ -1,4 +1,4 @@
-from typing import Any, Protocol
+from typing import Any, Protocol, Sequence
 
 import torch
 
@@ -118,3 +118,32 @@ class LogisticPolicy(BasePolicy):
         p = torch.sigmoid(X @ self.beta)  # p(T=1|X)
         p_t_x = p * T + (1 - p) * (1 - T)
         return p_t_x
+
+
+class MixedPolicy(BasePolicy):
+    """A mixed policy (e.g. the policy learned by DualKCMCPolicyLearner).
+
+    Args:
+        policies: Policies to be mixed
+        beta: Mixing probability of the policies
+    """
+
+    def __init__(self, policies: Sequence[BasePolicy], beta: torch.Tensor) -> None:
+        self.policies = policies
+        self.beta = beta
+
+    def sample(self, X: torch.Tensor) -> torch.Tensor:
+        ret = torch.zeros_like(self.policies[0].sample(X))
+        mix_dist = torch.distributions.Categorical(self.beta)  # type: ignore
+        assigned_policy = mix_dist.sample(X.shape[:1])  # type: ignore
+        for i, policy in enumerate(self.policies):
+            mask = assigned_policy == i
+            if mask.sum() == 0:
+                continue
+            ret[mask] = policy.sample(X[mask])
+        return ret
+
+    def prob(self, T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
+        probs = [policy.prob(T, X) for policy in self.policies]
+        ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(axis=0)  # type: ignore
+        return ret

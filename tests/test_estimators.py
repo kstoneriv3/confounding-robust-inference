@@ -549,3 +549,7 @@ def test_dual_kcmc_policy_learner(
     assert torch.isclose(est, est_)
     assert torch.isclose(low, low_)
     assert torch.isclose(high, high_)
+
+    mixed_policy = learner.predict_policy()
+
+    assert all(policy.prob(T, X) == mixed_policy.prob(T, X))

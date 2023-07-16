@@ -30,7 +30,7 @@ from confounding_robust_inference.estimators.misc import (
     get_dual_objective,
     get_normal_ci,
 )
-from confounding_robust_inference.policies import BasePolicy
+from confounding_robust_inference.policies import BasePolicy, MixedPolicy
 from confounding_robust_inference.utils.types import (
     _DEFAULT_TORCH_FLOAT_DTYPE,
     as_ndarrays,
@@ -838,6 +838,9 @@ class DualKCMCPolicyLearner(BaseEstimator):
         lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
         low, high = get_normal_ci(lb_samples, alpha)
         return low, high
+
+    def predict_policy(self) -> MixedPolicy:
+        return MixedPolicy(self.policies, self.beta)
 
     def dual_objective(
         self,
