@@ -1,5 +1,7 @@
 .. module:: confounding_robust_inference.estimators
 
+.. _list of estimators:
+
 confounding_robust_inference.estimators
 =======================================
 
