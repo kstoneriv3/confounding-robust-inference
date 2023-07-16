@@ -1,17 +1,18 @@
+![image](assets/aistats_poster.png)
+
 Kernel Conditional Moment Constraints for Confounding Robust Inference
 ======================================================================
 [![arXiv](https://img.shields.io/badge/arXiv-2302.13348-b31b1b)](https://arxiv.org/abs/2302.13348)
 [![Documentation](http://github.com/kstoneriv3/confounding_robust_inference/actions/workflows/docs.yaml/badge.svg)](https://github.com/kstoneriv3/confounding_robust_inference/actions/workflows/docs.yaml)
 [![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/kstoneriv3/confounding_robust_inferenc/LICENSE)
 
-This repository contains source code to replicate the results of the paper [Kernel Conditional Moment Constraints for Confounding Robust Inference](https://arxiv.org/abs/2302.13348).
+This repository contains the experimental code the paper [Kernel Conditional Moment Constraints for Confounding Robust Inference](https://arxiv.org/abs/2302.13348).
 The core part of the code is provided as a python package `confounding-robust-inference` and the codes for the experiments can be found in the examples folder as jupyter notebooks.
-
 
 Installation
 ------------
 
-To install the package `confounding-robust-inference`, copy this repository locally, move inside of it, and install it as editable package with pip, as
+To install the package `confounding-robust-inference`, copy this repository locally, move inside of it, and install it as editable package with pip:
 ```bash
 $ git clone git@github.com:kstoneriv3/confounding-robust-inference.git
 $ cd ./confounding-robust-inference
@@ -22,7 +23,7 @@ $ pip install -e .
 Documentation
 -------------
 
-Documentation is available at [https://kstoneriv3.github.io/confounding-robust-inference](https://kstoneriv3.github.io/confounding-robust-inference)
+Documentation is available at [https://kstoneriv3.github.io/confounding-robust-inference](https://kstoneriv3.github.io/confounding-robust-inference).
 
 
 Development
