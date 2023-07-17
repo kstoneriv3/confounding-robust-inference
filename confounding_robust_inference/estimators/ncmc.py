@@ -18,6 +18,9 @@ from confounding_robust_inference.utils.types import _DEFAULT_TORCH_FLOAT_DTYPE
 class DualNCMCEstimator(BaseEstimator):
     """Dual Neural Conditional Moment Constraints (NCMC) Estimator.
 
+    This estimator solves the dual problem of the KCMC estimator by replacing
+    the kernelized multiplier model by a neural network.
+
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
             "inverse_KL",  "Pearson_chi_squared".

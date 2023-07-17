@@ -69,7 +69,7 @@ def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray) -> np.ndarray:
 
 
 class KCMCEstimator(BaseKCMCEstimator):
-    """Kernel Conditional Moment Constraints (KCMC) Estimator.
+    """Kernel Conditional Moment Constraints (KCMC) Estimator by Ishikawa, He (2023).
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
@@ -421,7 +421,12 @@ class KCMCEstimator(BaseKCMCEstimator):
 
 
 class DualKCMCEstimator(BaseKCMCEstimator):
-    """Dual Kernel Conditional Moment Constraints (KCMC) Estimator.
+    """Dual Kernel Conditional Moment Constraints (KCMC) Estimator trained by
+    stochastic gradient descent.
+
+    This estimator solves the dual problem of KCMC estimator using stochastic gradient descent (SGD).
+    Though the quality of the solution is better when solving the primal problem by a convex
+    optimization solver, SGD gives an advantage of scalability when the number of samples is large.
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
@@ -564,7 +569,8 @@ class DualKCMCEstimator(BaseKCMCEstimator):
 
 
 class GPKCMCEstimator(BaseKCMCEstimator):
-    """Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator.
+    """Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator
+    by Ishikawa, He (2023).
 
     Args:
         const_type: Type of the constraint used. It must be one of "box", "KL", "inverse_KL",
