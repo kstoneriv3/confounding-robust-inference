@@ -89,7 +89,7 @@ class SyntheticDataBinary(BaseData):
         xi = (torch.rand(n) > 0.5).int()
         X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
         p_t_x = torch.sigmoid(X @ self.beta_p_t)
-        T = (torch.randn(n) < p_t_x).int()
+        T = (torch.rand(n) < p_t_x).int()
         Y = (
             X @ self.beta_x
             + X @ self.beta_x_t * T
