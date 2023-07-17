@@ -88,8 +88,7 @@ class SyntheticDataBinary(BaseData):
     def sample(self, n: int) -> DataTuple:
         xi = (torch.rand(n) > 0.5).int()
         X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
-        z = X @ self.beta_p_t
-        p_t_x = torch.exp(z) / (1 + torch.exp(z))
+        p_t_x = torch.sigmoid(X @ self.beta_p_t)
         T = (torch.randn(n) < p_t_x).int()
         Y = (
             X @ self.beta_x
