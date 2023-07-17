@@ -424,8 +424,8 @@ class DualKCMCEstimator(BaseKCMCEstimator):
     """Dual Kernel Conditional Moment Constraints (KCMC) Estimator trained by
     stochastic gradient descent.
 
-    This estimator solves the dual problem of KCMC estimator using stochastic gradient descent (SGD).
-    Though the quality of the solution is better when solving the primal problem by a convex
+    This estimator solves the dual problem of KCMC estimator using stochastic gradient descent
+    (SGD). Though the quality of the solution is better when solving the primal problem by a convex
     optimization solver, SGD gives an advantage of scalability when the number of samples is large.
 
     Args:

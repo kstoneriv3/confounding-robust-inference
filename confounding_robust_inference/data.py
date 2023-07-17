@@ -99,6 +99,7 @@ class SyntheticDataBinary(BaseData):
             + self.beta0_t * T
             + torch.randn(n)
         )
+        p_t_x = (1 - p_t_x) * (1 - T) + p_t_x * T
         return DataTuple(Y, T, X, None, p_t_x, None)
 
     def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:

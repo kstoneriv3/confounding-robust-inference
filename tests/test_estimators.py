@@ -254,13 +254,13 @@ def test_true_lower_bound(
     if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator, DualNCMCEstimator):
         pytest.skip()
 
-    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
     estimator = estimator_factory(spec, const_type, Gamma=1.5, D=20)
-    estimator.fit(Y[:30], T[:30], X[:30], p_t[:30], policy)
+    estimator.fit(Y[:50], T[:50], X[:50], p_t[:50], policy)
     out_of_fit_est = estimator.predict_dual(  # type: ignore[attr-defined]
-        Y[30:], T[30:], X[30:], p_t[30:]
+        Y[50:], T[50:], X[50:], p_t[50:]
     ).mean()
 
     true_lower_bound = TRUE_LOWER_BOUND[data_and_policy_type]
@@ -397,8 +397,8 @@ def test_gic(
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
-    D_opt = 10
-    D_over = 30
+    D_opt = 5
+    D_over = 10
 
     # Underfit
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
@@ -466,10 +466,10 @@ def test_ci_second_order(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
-    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    Y, T, X, _, p_t, _ = DATA_EXTRA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
-    estimator.fit(Y, T, X, p_t, policy)
+    estimator.fit(Y[:25], T[:25], X[:25], p_t[:25], policy)
     gic = estimator.predict_gic()
     low, high = estimator.predict_ci(alpha=1e-2, consider_second_order=True)
 
@@ -477,7 +477,6 @@ def test_ci_second_order(
     assert low < gic, f"low = {low} is expected to be smaller than gic = {gic}"
     assert gic < high, f"high = {high} is expected to be larger than gic = {gic}"
 
-    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator_ = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
     estimator_.fit(Y, T, X, p_t, policy)
