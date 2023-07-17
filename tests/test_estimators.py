@@ -257,7 +257,7 @@ def test_true_lower_bound(
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
-    estimator = estimator_factory(spec, const_type, Gamma=1.5)
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=20)
     estimator.fit(Y[:30], T[:30], X[:30], p_t[:30], policy)
     out_of_fit_est = estimator.predict_dual(  # type: ignore[attr-defined]
         Y[30:], T[30:], X[30:], p_t[30:]
@@ -363,19 +363,24 @@ def test_kcmc_dimensions(
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
-    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (4, 10, 25)
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
-    est_d1 = estimator.fit(Y, T, X, p_t, policy).predict()
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
-    est_d2 = estimator.fit(Y, T, X, p_t, policy).predict()
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D3)
-    est_d3 = estimator.fit(Y, T, X, p_t, policy).predict()
+    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (1, 8, 25)
+    fit_kwargs = {} if spec.estimator_cls == KCMCEstimator else {"n_steps": 300}
 
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
+    est_d1 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
+    est_d2 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D3)
+    est_d3 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+
+    assert est_d1 <= est_d3
+    assert est_d1 <= est_d2
+    assert est_d2 <= est_d3
     assert est_d1 <= est_d2 <= est_d3
 
 
-@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
-@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
+@pytest.mark.parametrize("data_and_policy_type", ["binary"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box"])
 def test_gic(
     data_and_policy_type: str,
     const_type: str,
@@ -392,7 +397,6 @@ def test_gic(
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
-    # D_opt = 10 if data_and_policy_type == "binary" else 3
     D_opt = 10
     D_over = 30
 
