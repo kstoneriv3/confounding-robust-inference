@@ -7,6 +7,7 @@ import cvxpy as cp
 import numpy as np
 import torch
 from scipy.stats import norm
+from sklearn.covariance import ledoit_wolf
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.preprocessing import StandardScaler
@@ -29,10 +30,12 @@ from confounding_robust_inference.estimators.misc import (
     assert_input,
     get_dual_objective,
     get_normal_ci,
+    kubokawam_srivastava,
 )
 from confounding_robust_inference.policies import BasePolicy, MixedPolicy
 from confounding_robust_inference.utils.types import (
     _DEFAULT_TORCH_FLOAT_DTYPE,
+    as_ndarray,
     as_ndarrays,
     as_tensor,
     as_tensors,
@@ -199,9 +202,12 @@ class KCMCEstimator(BaseKCMCEstimator):
         self._warn_asymptotics()
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
-        V = scores.T @ scores / n
-        J = self._get_dual_hessian()  # negative definite, as dual objective is concave
-        J_inv = torch.pinverse(J)
+        # V = scores.T @ scores / n
+        scores_np = as_ndarray(scores)
+        V = as_tensor(
+            ledoit_wolf(scores_np, assume_centered=True)  # shrinkage estimation of the covariance
+        )
+        J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
         return gic
 
@@ -220,7 +226,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         """
         if consider_second_order:
             self._warn_asymptotics()
-            boot_lb = self._bootstrap_lower_bounds(n_boot)
+            boot_lb = self.monte_carlo_lower_bounds(n_boot)
             low = torch.quantile(boot_lb, alpha / 2)
             high = torch.quantile(boot_lb, 1 - alpha / 2)
         else:
@@ -228,14 +234,13 @@ class KCMCEstimator(BaseKCMCEstimator):
             low, high = get_normal_ci(lb_samples, alpha)
         return low, high
 
-    def _bootstrap_lower_bounds(self, n_boot: int) -> torch.Tensor:
+    def _monte_carlo_lower_bounds(self, n_boot: int) -> torch.Tensor:
         n = self.Y.shape[0]
         losses, scores = self._get_dual_loss_and_jacobian()
         losses -= losses.mean()
         l_s = torch.concat([losses[:, None], scores], dim=1)
         V_joint = l_s.T @ l_s / n
-        J = self._get_dual_hessian()
-        J_inv = torch.pinverse(J)
+        J_inv = self._get_dual_hessian_inv()
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
         unif_samples = en.draw(n_boot, dtype=self.Y.dtype)
@@ -373,14 +378,12 @@ class KCMCEstimator(BaseKCMCEstimator):
         else:
             return torch.concat([self.eta_kcmc, self.eta_f])
 
-    def _get_dual_hessian(self) -> torch.Tensor:
+    def _get_dual_hessian_inv(self) -> torch.Tensor:
         if self.const_type in ("Tan_box", "lr_box", "total_variation"):
             # Use numpy for computation in this block.
             Y_np, T_np, X_np, p_t_np, pi_np, eta_kcmc_np = as_ndarrays(
                 self.Y, self.T, self.X, self.p_t, self.pi, self.eta_kcmc
             )
-            n = Y_np.shape[0]
-
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
@@ -398,13 +401,18 @@ class KCMCEstimator(BaseKCMCEstimator):
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
                 diag = np.diag(p_t_np * (b - a) * conditional_pdf)
 
-            H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            # H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            # H_inv = torch.pinverse(H)
+            H_inv = as_tensor(kubokawam_srivastava(self.Psi_np * (diag**0.5)[:, None]))
         elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
+            H_inv = torch.pinverse(H)
         else:
-            raise NotImplementedError  # Estimation is very unstable.
-        return H
+            # Estimation is very unstable or difficult due to non-differentiability.
+            raise NotImplementedError
+
+        return H_inv
 
     def _get_dual_loss_and_jacobian(self) -> tuple[torch.Tensor, torch.Tensor]:
         eta = self.eta.clone().detach().requires_grad_(True)

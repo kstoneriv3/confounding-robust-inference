@@ -208,3 +208,22 @@ def assert_input(
     assert Y.dtype == _DEFAULT_TORCH_FLOAT_DTYPE
     assert X.dtype == _DEFAULT_TORCH_FLOAT_DTYPE
     assert p_t.dtype == _DEFAULT_TORCH_FLOAT_DTYPE
+
+
+def kubokawam_srivastava(X, assume_centered=True, rescale=False):
+    """Shrinckage estimator of the precision matrix by Kubokawa and Srivastava (2008).
+
+    The formula is taken from [1]_.
+
+    .. [1] Wang, C., Pan, G., Tong, T., & Zhu, L. (2015). Shrinkage estimation of large dimensional
+       precision matrix using random matrix theory. Statistica Sinica, 993-1008.
+    """
+    assert assume_centered, "assume_centered=False is not supported right now."
+    assert len(X.shape) == 2
+    n, p = X.shape
+    if rescale:
+        scales = (X**2).mean(axis=1, keepdims=True)
+        X_scaled = X / scales
+    else:
+        X_scaled = X
+    S = X_scaled.T @ X_scaled
