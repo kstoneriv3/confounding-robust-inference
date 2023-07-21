@@ -397,8 +397,8 @@ def test_gic(
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
-    D_opt = 5
-    D_over = 10
+    D_opt = 4
+    D_over = 30
 
     # Underfit
     # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
@@ -509,7 +509,7 @@ def test_ci_second_order(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
-def test_bootstrap_lower_bounds(
+def test_monte_carlo_lower_bound(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
@@ -518,8 +518,31 @@ def test_bootstrap_lower_bounds(
     estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
     estimator.fit(Y, T, X, p_t, policy)
     gic = estimator.predict_gic()
-    boot_lb_mean = estimator._bootstrap_lower_bounds(10000).mean()
+    boot_lb_mean = estimator._monte_carlo_lower_bounds(10000).mean()
     assert torch.isclose(gic, boot_lb_mean, rtol=5e-2)
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "KL"])
+def test_fit_kpca(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit(Y, T, X, p_t, policy)
+    no_prefit_kpca = estimator.predict()
+
+    _, T_kpca, X_kpca, _, _, _ = DATA_LARGE[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit_kpca(T_kpca, X_kpca)
+    estimator.fit(Y, T, X, p_t, policy)
+    prefit_kpca = estimator.predict()
+
+    assert not torch.isclose(no_prefit_kpca, prefit_kpca, atol=1e-5)
+    assert torch.isclose(no_prefit_kpca, prefit_kpca, atol=3e-1)
 
 
 def test_hajek_estimator() -> None:

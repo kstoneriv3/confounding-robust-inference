@@ -30,12 +30,10 @@ from confounding_robust_inference.estimators.misc import (
     assert_input,
     get_dual_objective,
     get_normal_ci,
-    kubokawam_srivastava,
 )
 from confounding_robust_inference.policies import BasePolicy, MixedPolicy
 from confounding_robust_inference.utils.types import (
     _DEFAULT_TORCH_FLOAT_DTYPE,
-    as_ndarray,
     as_ndarrays,
     as_tensor,
     as_tensors,
@@ -115,6 +113,29 @@ class KCMCEstimator(BaseKCMCEstimator):
             "matrices involved. Please use the features with caution."
         )
 
+    def fit_kpca(
+        self,
+        T: torch.Tensor,
+        X: torch.Tensor,
+    ) -> KCMCEstimator:
+        """Fit the kernel principal component analysis (KPCA) for the orthogonal function class.
+
+        If this method is called before the :func:`fit` method, fit method will use the KPCA model
+        fit by this method. Fitting KPCA with your validation data can be useful when you use
+        different data for your :func:`fit` and :func:`predict_dual` methods.
+
+        Args:
+            T: Action variable (i.e. treatment).
+            X: Context variable. Its dtype must be
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+        """
+        T_np, X_np = as_ndarrays(T, X)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np_pipeline.fit(TX_np)
+        return self
+
     def fit(
         self,
         Y: torch.Tensor,
@@ -134,11 +155,14 @@ class KCMCEstimator(BaseKCMCEstimator):
         n = T.shape[0]
         r = Y * self.pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
+
+        # concatenate T and X
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
-        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        # Find orthognal function class
+        if not hasattr(self, "Psi_np_pipeline"):
+            self.fit_kpca(T, X)
+        self.Psi_np = self.Psi_np_pipeline.transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
@@ -203,22 +227,25 @@ class KCMCEstimator(BaseKCMCEstimator):
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
         # V = scores.T @ scores / n
-        scores_np = as_ndarray(scores)
+        scores_np = scores.data.numpy()
         V = as_tensor(
-            ledoit_wolf(scores_np, assume_centered=True)  # shrinkage estimation of the covariance
+            ledoit_wolf(scores_np, assume_centered=True)[
+                0
+            ]  # shrinkage estimation of the covariance
         )
         J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
+        breakpoint()
         return gic
 
     def predict_ci(
-        self, n_boot: int = 10000, alpha: float = 0.05, consider_second_order: bool = False
+        self, n_mc: int = 10000, alpha: float = 0.05, consider_second_order: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
         Args:
-            n_boot: The number of Monte Carlo samples used to calculate the percentile of the
-                asymptotic distribution by bootstraping.
+            n_mc: The number of Monte Carlo samples used to calculate the percentile of the
+                asymptotic distribution.
             alpha: Significance level of used for the confidence interval.
             consider_second_order: If True, consider the second order asymptotics similarly to GIC.
                 When second order asymptotics is considered, Monte Carlo sampling is used for
@@ -226,32 +253,34 @@ class KCMCEstimator(BaseKCMCEstimator):
         """
         if consider_second_order:
             self._warn_asymptotics()
-            boot_lb = self.monte_carlo_lower_bounds(n_boot)
-            low = torch.quantile(boot_lb, alpha / 2)
-            high = torch.quantile(boot_lb, 1 - alpha / 2)
+            mc_lb = self._monte_carlo_lower_bounds(n_mc)
+            low = torch.quantile(mc_lb, alpha / 2)
+            high = torch.quantile(mc_lb, 1 - alpha / 2)
         else:
             lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
             low, high = get_normal_ci(lb_samples, alpha)
         return low, high
 
-    def _monte_carlo_lower_bounds(self, n_boot: int) -> torch.Tensor:
+    def _monte_carlo_lower_bounds(self, n_mc: int) -> torch.Tensor:
         n = self.Y.shape[0]
         losses, scores = self._get_dual_loss_and_jacobian()
         losses -= losses.mean()
         l_s = torch.concat([losses[:, None], scores], dim=1)
-        V_joint = l_s.T @ l_s / n
+        # V_joint = l_s.T @ l_s / n
+        V_joint = as_tensor(
+            ledoit_wolf(l_s, assume_centered=True)[0]
+        )  # shrinkage estimation of the covariance
+        breakpoint()
         J_inv = self._get_dual_hessian_inv()
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
-        unif_samples = en.draw(n_boot, dtype=self.Y.dtype)
+        unif_samples = en.draw(n_mc, dtype=self.Y.dtype)
         normal_samples = torch.distributions.Normal(0, 1).icdf(unif_samples)  # type: ignore
-        boot_l_s = normal_samples @ torch.linalg.cholesky(V_joint / n).mT
-        boot_l_s[:, 0] += self.fitted_lower_bound
-        boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta.shape[0]], dim=1)
-        boot_lb = (
-            boot_losses[:, 0] + torch.einsum("mi,ij,mj->m", boot_scores, J_inv, boot_scores) / 2
-        )
-        return boot_lb
+        mc_l_s = normal_samples @ torch.linalg.cholesky(V_joint / n).mT
+        mc_l_s[:, 0] += self.fitted_lower_bound
+        mc_losses, mc_scores = torch.split(mc_l_s, [1, self.eta.shape[0]], dim=1)
+        mc_lb = mc_losses[:, 0] + torch.einsum("mi,ij,mj->m", mc_scores, J_inv, mc_scores) / 2
+        return mc_lb
 
     def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints
@@ -395,15 +424,20 @@ class KCMCEstimator(BaseKCMCEstimator):
 
             if self.const_type == "total_variation":
                 conditional_pdf = norm.pdf(eta_cmc + 0.5, loc=eta_cmc_mean, scale=eta_cmc_std)
-                diag = np.diag(conditional_pdf)
+                # diag = np.diag(conditional_pdf)
+                scale = np.sqrt(conditional_pdf)
             else:
                 a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
-                diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+                # diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+                scale = np.sqrt(p_t_np * (b - a) * conditional_pdf)
 
             # H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
             # H_inv = torch.pinverse(H)
-            H_inv = as_tensor(kubokawam_srivastava(self.Psi_np * (diag**0.5)[:, None]))
+            X = self.Psi_np * scale[:, None]
+            X_mean = X.mean(axis=0, keepdims=True)
+            X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
+            H_inv = -as_tensor(np.linalg.pinv(X_mean * X_mean.T + X_cov, hermitian=True))
         elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
@@ -692,6 +726,7 @@ class GPKCMCEstimator(BaseKCMCEstimator):
 
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
