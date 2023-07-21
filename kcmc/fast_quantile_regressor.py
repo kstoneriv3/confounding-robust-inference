@@ -13,7 +13,7 @@ class QuantileRegressor:
         Y_scale = Y.std()
         Y = torch.as_tensor(Y) / Y_scale
         X = torch.as_tensor(np.concatenate([X, np.ones((X.shape[0], 1))], axis=1))
-        L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, axis=1).mean()
+        L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, dim=1).mean()
         optim = torch.optim.SGD([self.beta], lr=0.1 / L)
         for i in range(n_iter):
             loss = self.quantile_loss(Y - X @ self.beta, self.quantile).mean()

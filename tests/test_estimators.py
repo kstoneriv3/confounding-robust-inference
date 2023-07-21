@@ -346,12 +346,9 @@ def test_get_dual_loss_and_jacobian(data_and_policy_type: str, const_type: str) 
     assert torch.allclose(dual_loss, loss, atol=1e-5)
 
     # The first order condition for the dual objective should be zero.
-    # But subgradient containing zero does not imply mean of jacobian is exactly zero...
-    scaled_avg_grad = autodiff_jacobian.mean(  # gradient of the original problem
-        dim=0
-    ) / np.linalg.norm(
-        estimator.Psi_np, axis=0
-    )  # type: ignore
+    # But subgradient containing zero does not imply mean of jacobian is exactly zero ...
+    # Here, we rescale the gradient to use the gradient of the original optimization problem
+    scaled_avg_grad = autodiff_jacobian.mean(dim=0) / np.linalg.norm(estimator.Psi_np, axis=0)
     assert torch.allclose(torch.zeros_like(autodiff_jacobian[0, :]), scaled_avg_grad, atol=0.02)
 
     # Check the Jacobian obtained by autodiff with analytic expression.

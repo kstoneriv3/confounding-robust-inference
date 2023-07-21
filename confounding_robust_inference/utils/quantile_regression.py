@@ -43,7 +43,7 @@ class TorchQuantileRegressor:
     def fit(self, X: torch.Tensor, Y: torch.Tensor, n_iter: int = 200) -> "TorchQuantileRegressor":
         Y_scale = Y.std() or 1.0  # avoid zero division
         Y = Y / Y_scale
-        L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, axis=1).mean()
+        L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, dim=1).mean()
         beta = torch.zeros(X.shape[1], requires_grad=True, dtype=float)  # type: ignore
         beta.data[-1] = Y.mean()
         optim = torch.optim.SGD([beta], lr=0.05 / L)

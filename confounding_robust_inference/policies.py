@@ -145,5 +145,5 @@ class MixedPolicy(BasePolicy):
 
     def prob(self, T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
         probs = [policy.prob(T, X) for policy in self.policies]
-        ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(axis=0)  # type: ignore
+        ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(dim=0)
         return ret
