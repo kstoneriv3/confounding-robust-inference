@@ -58,14 +58,15 @@ def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
         )
 
 
-def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray) -> np.ndarray:
+def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale=True) -> np.ndarray:
     """Black magic for choosing orthogonal basis."""
     # Rescale the kernel per sample so that it's scaler better matches that of Y
     Psi = Psi / p_t[:, None]
     # constant basis is essential for numerical stability of f-divergence constraint
     Psi = np.concatenate([Psi, np.ones_like(p_t)[:, None]], axis=1)
     # Rescale per basis
-    Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
+    if rescale:
+        Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
     return Psi
 
 
@@ -163,7 +164,8 @@ class KCMCEstimator(BaseKCMCEstimator):
         if not hasattr(self, "Psi_np_pipeline"):
             self.fit_kpca(T, X)
         self.Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, rescale=False)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -174,7 +176,7 @@ class KCMCEstimator(BaseKCMCEstimator):
             objective = cp.Minimize(r_np.T @ w)
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
-            kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
+            kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np / Psi_np_scale[None, :])
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -190,7 +192,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
-        self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
+        self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value / Psi_np_scale)  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
         self.eta_f = as_tensor(
             [f_div_const[0].dual_value] if "box" not in self.const_type else [1.0]
@@ -213,7 +215,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        Psi_np = apply_black_magic(Psi_np, p_t_np)
+        Psi_np = apply_black_magic(Psi_np, p_t_np, rescale=False)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc
         dual = get_dual_objective(
@@ -322,7 +324,7 @@ class KCMCEstimator(BaseKCMCEstimator):
             T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             Psi_np = self.Psi_np_pipeline.transform(TX_np)
-            Psi_np = apply_black_magic(Psi_np, p_t_np)
+            Psi_np = apply_black_magic(Psi_np, p_t_np, resacle=False)
             Psi = as_tensor(Psi_np)
             eta_cmc = Psi @ eta_kcmc
             loss = get_dual_objective(

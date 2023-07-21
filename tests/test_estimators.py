@@ -295,6 +295,24 @@ def test_augment_data(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+def test_predict_dual_sample_size(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    """Make sure that the output of predict_dual is the same for doubled (duplicated) data."""
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
+    estimator.fit(Y[:40], T[:40], X[:40], p_t[:40], policy)
+    data_pred = [Y[40:], T[40:], X[40:], p_t[40:]]
+    dual = estimator.predict_dual(*data_pred).mean()
+    dual_doubled = estimator.predict_dual(
+        *map(lambda x: torch.concat([x, x], axis=0), data_pred)
+    ).mean()
+    assert torch.isclose(dual, dual_doubled, atol=1e-6)
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
 def test_strong_duality(
     data_and_policy_type: str,
     const_type: str,
@@ -327,11 +345,11 @@ def test_get_dual_loss_and_jacobian(data_and_policy_type: str, const_type: str) 
     assert torch.allclose(dual_loss, loss, atol=1e-5)
 
     # The first order condition for the dual objective should be zero.
-    assert torch.allclose(
-        torch.zeros_like(autodiff_jacobian[0, :]),
-        autodiff_jacobian.mean(axis=0),  # type: ignore
-        atol=0.02,
-    )
+    # But subgradient containing zero does not imply mean of jacobian is exactly zero...
+    scaled_avg_grad = (  # gradient of the original problem
+        autodiff_jacobian.mean(axis=0) / np.linalg.norm(estimator.Psi_np, axis=0)
+    )  # type: ignore
+    assert torch.allclose(torch.zeros_like(autodiff_jacobian[0, :]), scaled_avg_grad,  atol=0.02)
 
     # Check the Jacobian obtained by autodiff with analytic expression.
     if "box" in const_type:
