@@ -58,7 +58,7 @@ def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
         )
 
 
-def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale=True) -> np.ndarray:
+def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale: bool = True) -> np.ndarray:
     """Black magic for choosing orthogonal basis."""
     # Rescale the kernel per sample so that it's scaler better matches that of Y
     Psi = Psi / p_t[:, None]
@@ -192,7 +192,9 @@ class KCMCEstimator(BaseKCMCEstimator):
         self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
-        self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value / Psi_np_scale)  # need to match sign!
+        self.eta_kcmc = as_tensor(
+            -kernel_consts[0].dual_value / Psi_np_scale
+        )  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
         self.eta_f = as_tensor(
             [f_div_const[0].dual_value] if "box" not in self.const_type else [1.0]
@@ -237,7 +239,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         )
         J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
-        breakpoint()
+        # breakpoint()
         return gic
 
     def predict_ci(
@@ -272,7 +274,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         V_joint = as_tensor(
             ledoit_wolf(l_s, assume_centered=True)[0]
         )  # shrinkage estimation of the covariance
-        breakpoint()
+        # breakpoint()
         J_inv = self._get_dual_hessian_inv()
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore

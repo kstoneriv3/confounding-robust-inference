@@ -307,9 +307,10 @@ def test_predict_dual_sample_size(
     data_pred = [Y[40:], T[40:], X[40:], p_t[40:]]
     dual = estimator.predict_dual(*data_pred).mean()
     dual_doubled = estimator.predict_dual(
-        *map(lambda x: torch.concat([x, x], axis=0), data_pred)
+        *map(lambda x: torch.concat([x, x], dim=0), data_pred)
     ).mean()
     assert torch.isclose(dual, dual_doubled, atol=1e-6)
+
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
@@ -346,10 +347,12 @@ def test_get_dual_loss_and_jacobian(data_and_policy_type: str, const_type: str) 
 
     # The first order condition for the dual objective should be zero.
     # But subgradient containing zero does not imply mean of jacobian is exactly zero...
-    scaled_avg_grad = (  # gradient of the original problem
-        autodiff_jacobian.mean(axis=0) / np.linalg.norm(estimator.Psi_np, axis=0)
+    scaled_avg_grad = autodiff_jacobian.mean(  # gradient of the original problem
+        dim=0
+    ) / np.linalg.norm(
+        estimator.Psi_np, axis=0
     )  # type: ignore
-    assert torch.allclose(torch.zeros_like(autodiff_jacobian[0, :]), scaled_avg_grad,  atol=0.02)
+    assert torch.allclose(torch.zeros_like(autodiff_jacobian[0, :]), scaled_avg_grad, atol=0.02)
 
     # Check the Jacobian obtained by autodiff with analytic expression.
     if "box" in const_type:
