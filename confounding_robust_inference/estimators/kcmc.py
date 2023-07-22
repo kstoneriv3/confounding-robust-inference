@@ -64,9 +64,9 @@ def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale: bool = True) ->
     Psi = Psi / p_t[:, None]
     # constant basis is essential for numerical stability of f-divergence constraint
     Psi = np.concatenate([Psi, np.ones_like(p_t)[:, None]], axis=1)
-    # Rescale per basis
-    if rescale:
-        Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
+    # Do not rescale per basis here!!!
+    # Otherwise, test data given to predict dual will be scaled differently.
+    # Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
     return Psi
 
 
@@ -164,7 +164,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         if not hasattr(self, "Psi_np_pipeline"):
             self.fit_kpca(T, X)
         self.Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, rescale=False)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
         Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
@@ -217,7 +217,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        Psi_np = apply_black_magic(Psi_np, p_t_np, rescale=False)
+        Psi_np = apply_black_magic(Psi_np, p_t_np)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc
         dual = get_dual_objective(
@@ -545,6 +545,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         kwargs = {
             "lr": 3e-2,
@@ -556,7 +557,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
 
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
-            eta_cmc = as_tensor(self.Psi_np)[train_idx] @ self.eta_kcmc
+            eta_cmc = as_tensor(self.Psi_np / Psi_np_scale[None, :])[train_idx] @ self.eta_kcmc
             objective = -get_dual_objective(
                 self.Y[train_idx],
                 self.p_t[train_idx],
@@ -576,7 +577,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
             with torch.no_grad():
-                eta_cmc = as_tensor(self.Psi_np)[val_idx] @ self.eta_kcmc
+                eta_cmc = as_tensor(self.Psi_np / Psi_np_scale[None, :])[val_idx] @ self.eta_kcmc
                 lower_bounds[val_idx] = get_dual_objective(
                     self.Y[val_idx],
                     self.p_t[val_idx],
@@ -735,6 +736,7 @@ class GPKCMCEstimator(BaseKCMCEstimator):
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -746,7 +748,7 @@ class GPKCMCEstimator(BaseKCMCEstimator):
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             constraints.extend(
-                get_gp_constraints(w, p_t_np, pi_np, self.Psi_np, self.sigma2, self.alpha)
+                get_gp_constraints(w, p_t_np, pi_np, self.Psi_np / Psi_np_scale[None, :], self.sigma2, self.alpha)
             )
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -840,6 +842,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         a_w_tilde, b_w_tilde = self.get_a_b_w_tilde(p_t)
         a_w_tilde_np, b_w_tilde_np = as_ndarrays(a_w_tilde, b_w_tilde)
@@ -857,7 +860,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
             eta_kcmc = cp.Variable(self.Psi_np.shape[1])
             beta = cp.Variable(len(policies))
 
-            eta_cmc = self.Psi_np @ eta_kcmc  # This is still a matrix multiplication
+            eta_cmc = (self.Psi_np / Psi_np_scale[None, :]) @ eta_kcmc  # This is still a matrix multiplication
             pi_cp = cp.sum([b * pi_np for b, pi_np in zip(beta, pi_np_list)])
             dual = cp.sum(eta_cmc - f_conj_cp(eta_cmc - cp.multiply(Y_np / p_t_np, pi_cp)))
 

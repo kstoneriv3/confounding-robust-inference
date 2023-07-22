@@ -295,11 +295,16 @@ def test_augment_data(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+@pytest.mark.parametrize("spec", ESTIMATOR_SPECS, ids=ESTIMATOR_NAMES)
 def test_predict_dual_sample_size(
     data_and_policy_type: str,
+    spec: EstimatorSpec,
     const_type: str,
 ) -> None:
     """Make sure that the output of predict_dual is the same for doubled (duplicated) data."""
+    if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator) or "D" not in spec.parameters:
+        pytest.skip()
+
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
