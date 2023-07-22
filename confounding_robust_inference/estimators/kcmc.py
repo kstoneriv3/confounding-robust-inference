@@ -474,6 +474,10 @@ class DualKCMCEstimator(BaseKCMCEstimator):
     (SGD). Though the quality of the solution is better when solving the primal problem by a convex
     optimization solver, SGD gives an advantage of scalability when the number of samples is large.
 
+    Note:
+        Though SGD is a widely-adopted means of solving this type of problem, we can probably
+        improve it by stochastic ADMM (Ouyang, He, et. al., 2013).
+
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
             "inverse_KL", "Pearson_chi_squared".
