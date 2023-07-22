@@ -12,6 +12,7 @@ from confounding_robust_inference.estimators.kcmc import (
     KCMCEstimator,
 )
 from confounding_robust_inference.estimators.ncmc import DualNCMCEstimator
+from confounding_robust_inference.utils.docs import _populate_docstrings
 
 __all__ = [
     "BaseEstimator",
@@ -26,3 +27,7 @@ __all__ = [
     "QBEstimator",
     "ZSBEstimator",
 ]
+
+for _cls_name in __all__:
+    _cls = vars()[_cls_name]
+    _populate_docstrings(_cls)

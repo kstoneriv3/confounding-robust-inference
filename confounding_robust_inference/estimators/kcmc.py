@@ -475,7 +475,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
     optimization solver, SGD gives an advantage of scalability when the number of samples is large.
 
     Note:
-        Though SGD is a widely-adopted means of solving this type of problem, we can probably
+        Though SGD is a widely-adopted means of solving this type of problem, we may be able to
         improve it by stochastic ADMM (Ouyang, He, et. al., 2013).
 
     Args:
@@ -812,6 +812,18 @@ class DualKCMCPolicyLearner(BaseEstimator):
         p_t: torch.Tensor,
         policies: Sequence[BasePolicy],  # type: ignore[override]
     ) -> DualKCMCPolicyLearner:
+        """Learns the policy that maximizes the lower bound of the given data.
+
+        Args:
+            Y: Outcome variable. It must be a tensor of shape [n_samples] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            T: Action variable (i.e. treatment). It must be a tensor of shape [n_samples].
+            X: Context variable. It must be a tensor of shape [n_samples, n_dim] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            p_t: Nominal propensity p_obs(t|x). It must be a tensor of shape [n_samples] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            policies: Policies whose mixture constitutes the policy space for the policy learning.
+        """
         assert_input(Y, T, X, p_t)
         assert len(policies) >= 1
         self.Y = Y
@@ -897,6 +909,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
         return low, high
 
     def predict_policy(self) -> MixedPolicy:
+        """Returns the learned optimal policy."""
         return MixedPolicy(self.policies, self.beta)
 
     def dual_objective(

@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import NamedTuple, Protocol
+from typing import NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 import pandas as pd
@@ -7,6 +7,7 @@ import torch
 from scipy.stats import norm
 
 from confounding_robust_inference.policies import BasePolicy
+from confounding_robust_inference.utils.docs import _populate_docstrings
 from confounding_robust_inference.utils.propensity import estimate_p_t_binary
 from confounding_robust_inference.utils.types import as_tensor, as_tensors
 
@@ -47,6 +48,11 @@ class BaseData(Protocol):
         """
         raise NotImplementedError
 
+
+@runtime_checkable
+class BaseDataWithLowerBound(Protocol):
+    """Base class for data with known ground truth lower bound."""
+
     def evaluate_policy_lower_bound(
         self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
@@ -65,7 +71,7 @@ class BaseData(Protocol):
         raise NotImplementedError
 
 
-class SyntheticDataBinary(BaseData):
+class SyntheticDataBinary(BaseDataWithLowerBound):
     """Synthetic data with witn binary action space and a known lower bound.
 
     This is synthetic data with binary action space, similar to Kallus and Zhou (2018).
@@ -128,7 +134,7 @@ class SyntheticDataBinary(BaseData):
         return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
 
 
-class SyntheticDataContinuous(BaseData):
+class SyntheticDataContinuous(BaseDataWithLowerBound):
     """Synthetic data with with continuous action space and a known lower bound.
 
     This is synthetic data with continuous action space, similar to Kallus and Zhou (2018).
@@ -377,3 +383,14 @@ class NLSDataDornGuo2022:
         p_t_x = estimate_p_t_binary(T, X)
 
         return DataTuple(Y, T, X, None, p_t_x, None)
+
+
+for _cls in [
+    BaseData,
+    BaseDataWithLowerBound,
+    SyntheticDataBinary,
+    SyntheticDataContinuous,
+    SyntheticDataKallusZhou2018,
+    SyntheticDataKallusZhou2018Continuous,
+]:
+    _populate_docstrings(_cls)

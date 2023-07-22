@@ -13,6 +13,7 @@ tags
 # logs
 *logs/
 
+*tmp/
 
 # Distribution / packaging
 .Python

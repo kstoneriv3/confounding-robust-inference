@@ -19,12 +19,12 @@ class BaseEstimator(Protocol):
         """Solve the minimization problem for obtaining the lower bound for the given data.
 
         Args:
-            Y: Outcome variable. Its dtype must be
+            Y: Outcome variable. It must be of shape [n_samples] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
-            T: Action variable (i.e. treatment).
-            X: Context variable. Its dtype must be
+            T: Action variable (i.e. treatment). It must be of shape [n_samples].
+            X: Context variable. It must be of shape [n_samples, n_dim] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
-            p_t: Nominal propensity p_obs(t|x). Its dtype must be
+            p_t: Nominal propensity p_obs(t|x). It must be of shape [n_samples] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
             policy: Policy to be evaluated.
         """
@@ -48,12 +48,12 @@ class BaseKCMCEstimator(BaseEstimator, Protocol):
         for individual samples of given data.
 
         Args:
-            Y: Outcome variable. Its dtype must be
+            Y: Outcome variable. It must be of shape [n_samples] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
-            T: Action variable (i.e. treatment).
-            X: Context variable. Its dtype must be
+            T: Action variable (i.e. treatment). It must be of shape [n_samples].
+            X: Context variable. It must be of shape [n_samples, n_dim] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
-            p_t: Nominal propensity p_obs(t|x). Its dtype must be
+            p_t: Nominal propensity p_obs(t|x). It must be of shape [n_samples] and type
                 confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
 
         Returns:
