@@ -231,14 +231,6 @@ class KCMCEstimator(BaseKCMCEstimator):
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
         V = scores.T @ scores / n
-        scores_np = scores.data.numpy()
-        '''
-        V = as_tensor(
-            ledoit_wolf(scores_np, assume_centered=True)[
-                0
-            ]  # shrinkage estimation of the covariance
-        )
-        '''
         J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
         # breakpoint()
@@ -272,10 +264,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         losses, scores = self._get_dual_loss_and_jacobian()
         losses -= losses.mean()
         l_s = torch.concat([losses[:, None], scores], dim=1)
-        # V_joint = l_s.T @ l_s / n
-        V_joint = as_tensor(
-            ledoit_wolf(l_s, assume_centered=True)[0]
-        )  # shrinkage estimation of the covariance
+        V_joint = l_s.T @ l_s / n
         # breakpoint()
         J_inv = self._get_dual_hessian_inv()
 
@@ -430,19 +419,20 @@ class KCMCEstimator(BaseKCMCEstimator):
 
             if self.const_type == "total_variation":
                 conditional_pdf = norm.pdf(eta_cmc + 0.5, loc=eta_cmc_mean, scale=eta_cmc_std)
-                # diag = np.diag(conditional_pdf)
                 scale = np.sqrt(conditional_pdf)
             else:
                 a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
-                # diag = np.diag(p_t_np * (b - a) * conditional_pdf)
                 scale = np.sqrt(p_t_np * (b - a) * conditional_pdf)
 
-            # H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            # H = -as_tensor(self.Psi_np.T @ np.diag(scale ** 2) @ self.Psi_np / self.Psi_np.shape[0])
             # H_inv = torch.pinverse(H)
             X = self.Psi_np * scale[:, None]
             X_mean = X.mean(axis=0, keepdims=True)
-            X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
+            X_scale = X.std(axis=0)
+            X_cor, _ = ledoit_wolf(X / X_scale[None, :])  # A shrinkage estimator for stable estimation of covariance
+            X_cov = X_scale[:, None] * X_cor * X_scale[None, :]
+            # X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
             H_inv = -as_tensor(np.linalg.pinv(X_mean * X_mean.T + X_cov, hermitian=True))
         elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
