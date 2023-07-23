@@ -230,13 +230,15 @@ class KCMCEstimator(BaseKCMCEstimator):
         self._warn_asymptotics()
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
-        # V = scores.T @ scores / n
+        V = scores.T @ scores / n
         scores_np = scores.data.numpy()
+        '''
         V = as_tensor(
             ledoit_wolf(scores_np, assume_centered=True)[
                 0
             ]  # shrinkage estimation of the covariance
         )
+        '''
         J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
         # breakpoint()
@@ -874,7 +876,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
             try_solvers(problem, solvers)
 
         self.eta_kcmc = torch.zeros_like(p_t[: self.Psi_np.shape[1]])
-        self.eta_kcmc[:] = as_tensor(eta_kcmc.value)
+        self.eta_kcmc[:] = as_tensor(eta_kcmc.value / Psi_np_scale[None, :])
         self.beta = torch.zeros_like(p_t[: len(policies)])
         self.beta[:] = as_tensor(beta.value)
         return self
