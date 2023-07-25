@@ -254,7 +254,7 @@ def test_true_lower_bound(
     if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator, DualNCMCEstimator):
         pytest.skip()
 
-    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
+    Y, T, X, _, p_t, _ = DATA_EXTRA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
     estimator = estimator_factory(spec, const_type, Gamma=1.5, D=20)
@@ -387,7 +387,7 @@ def test_kcmc_dimensions(
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
     D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (1, 8, 25)
-    fit_kwargs = {} if spec.estimator_cls == KCMCEstimator else {"n_steps": 300}
+    fit_kwargs = {} if spec.estimator_cls == KCMCEstimator else {"n_steps": 500}
 
     estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
     est_d1 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
@@ -409,14 +409,6 @@ def test_gic(
     const_type: str,
 ) -> None:
     """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
-    if const_type == "Tan_box" and data_and_policy_type == "continuous":
-        pytest.skip()
-
-    failing_inputs = [("KL", "binary")]
-    if (const_type, data_and_policy_type) in failing_inputs:
-        pytest.skip(
-            "These tests are broken due to unstability of Hessian and covariance estiamtors"
-        )
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
@@ -424,21 +416,18 @@ def test_gic(
     D_over = 30
 
     # Underfit
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator.fit(Y, T, X, p_t, policy)
     est_under = estimator.predict()
     gic_under = estimator.predict_gic()
     assert gic_under <= est_under
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
+    # Right fit
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
     gic_opt = estimator.predict_gic()
     assert gic_opt <= est_opt
     # Overfit
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=40)
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_over)
     estimator.fit(Y, T, X, p_t, policy)
     est_over = estimator.predict()

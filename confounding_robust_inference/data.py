@@ -99,8 +99,8 @@ class SyntheticDataBinary(BaseDataWithLowerBound):
         Y = (
             X @ self.beta_x
             + X @ self.beta_x_t * T
-            + xi * self.beta_xi
-            + xi * self.beta_xi * T
+            # + xi * self.beta_xi
+            # + xi * self.beta_xi * T
             + self.beta0
             + self.beta0_t * T
             + torch.randn(n)
@@ -109,15 +109,15 @@ class SyntheticDataBinary(BaseDataWithLowerBound):
         return DataTuple(Y, T, X, None, p_t_x, None)
 
     def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
-        xi = (torch.rand(n_mc) > 0.5).int()
+        # xi = (torch.rand(n_mc) > 0.5).int()
         X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
         Y_po = torch.Tensor(size=(n_mc, 2))
         for t in (0, 1):
             Y_po[:, t] = (
                 X @ self.beta_x
                 + X @ self.beta_x_t * t
-                + xi * self.beta_xi
-                + xi * self.beta_xi * t
+                # + xi * self.beta_xi
+                # + xi * self.beta_xi * t
                 + self.beta0
                 + self.beta0_t * t
                 + torch.randn(n_mc)
@@ -131,7 +131,8 @@ class SyntheticDataBinary(BaseDataWithLowerBound):
         self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
         tau = 1 / (1 + Gamma)
-        return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
+        # See Proposition 2. of Dorn and Guo (2022).
+        return self.evaluate_policy(policy, n_mc) - norm.pdf(norm.ppf(tau)) * (Gamma - 1 / Gamma)
 
 
 class SyntheticDataContinuous(BaseDataWithLowerBound):
@@ -163,8 +164,8 @@ class SyntheticDataContinuous(BaseDataWithLowerBound):
         Y = (
             X @ self.beta_x
             + X @ self.beta_x_t * T
-            + xi * self.beta_xi
-            + xi * self.beta_xi * T
+            # + xi * self.beta_xi
+            # + xi * self.beta_xi * T
             + self.beta0
             + self.beta0_t * T
             + torch.randn(n)
@@ -172,14 +173,14 @@ class SyntheticDataContinuous(BaseDataWithLowerBound):
         return DataTuple(Y, T, X, None, p_t_x, None)
 
     def evaluate_policy(self, policy: BasePolicy, n_mc: int = 1000) -> torch.Tensor:
-        xi = (torch.rand(n_mc) > 0.5).int()
+        # xi = (torch.rand(n_mc) > 0.5).int()
         X = self.mu_x[None, :] + torch.randn(n_mc * 5).reshape(n_mc, 5)
         T = policy.sample(X)
         Y = (
             X @ self.beta_x
             + X @ self.beta_x_t * T
-            + xi * self.beta_xi
-            + xi * self.beta_xi * T
+            # + xi * self.beta_xi
+            # + xi * self.beta_xi * T
             + self.beta0
             + self.beta0_t * T
             + torch.randn(n_mc)
@@ -190,7 +191,8 @@ class SyntheticDataContinuous(BaseDataWithLowerBound):
         self, policy: BasePolicy, Gamma: float, n_mc: int = 1000
     ) -> torch.Tensor:
         tau = 1 / (1 + Gamma)
-        return self.evaluate_policy(policy, n_mc) + norm.pdf(tau) * (-Gamma + 1 / Gamma)
+        # See Proposition 2. of Dorn and Guo (2022).
+        return self.evaluate_policy(policy, n_mc) - norm.pdf(norm.ppf(tau)) * (Gamma - 1 / Gamma)
 
 
 class SyntheticDataKallusZhou2018(BaseData):
