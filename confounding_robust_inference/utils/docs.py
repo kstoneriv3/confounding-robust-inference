@@ -1,5 +1,5 @@
 import types
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Protocol, Sequence
 
 
 def find_methods(cls: Any) -> list[Callable]:
@@ -27,7 +27,7 @@ def find_parent_classes_with_method_docstring(cls: Any, method_name: str) -> lis
     return found_parents
 
 
-def _populate_docstrings(cls: Any) -> None:
+def populate_docstrings(cls: Any) -> None:
     """Populate missing docstring of the methods if it is defined in the parent class."""
     # print(f"Found methods for {cls.__name__}: {find_method_names(cls)}")
     for method_name in find_method_names(cls):
@@ -43,3 +43,10 @@ def _populate_docstrings(cls: Any) -> None:
             c = parent_cls[0].__name__
             method.__doc__ = f"See :func:`{c}.{method_name}`"
             # print(f"Set {cls.__name__}.{method_name}.__doc__ as \"\"\"{method.__doc__}\"\"\".")
+
+
+class WithDocstringsMeta(type(Protocol)):  # type: ignore[misc]
+    def __new__(cls: Any, clsname: str, bases: Sequence[Any], attrs: Dict[str, Any]) -> Any:
+        new_cls = super().__new__(cls, clsname, bases, attrs)
+        populate_docstrings(new_cls)
+        return new_cls

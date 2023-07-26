@@ -5,9 +5,10 @@ from typing import Protocol, runtime_checkable
 import torch
 
 from confounding_robust_inference.policies import BasePolicy
+from confounding_robust_inference.utils.docs import WithDocstringsMeta
 
 
-class BaseEstimator(Protocol):
+class BaseEstimator(Protocol, metaclass=WithDocstringsMeta):
     def fit(
         self,
         Y: torch.Tensor,

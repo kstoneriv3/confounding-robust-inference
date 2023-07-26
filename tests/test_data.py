@@ -88,10 +88,10 @@ def test_evaluate_policy_lower_bound_shape(data_cls: Type[BaseData]) -> None:
     if not isinstance(data_cls, BaseDataWithLowerBound):
         pytest.skip("No evaluate_policy_lower_bound method implemeted.")
     n = 30
-    data = data_cls()
+    data = data_cls()  # type: ignore[misc]
     Y, T, X, U, p_t_x, p_t_xu = data.sample(n)
     policy: BasePolicy
-    if "Continuous" in data_cls.__name__:
+    if "Continuous" in data_cls.__name__:  # type: ignore[attr-defined]
         policy = ContinuousPolicy()
     else:
         policy = BinaryPolicy()

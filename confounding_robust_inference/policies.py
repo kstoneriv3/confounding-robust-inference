@@ -2,10 +2,10 @@ from typing import Any, Protocol, Sequence
 
 import torch
 
-from confounding_robust_inference.utils.docs import _populate_docstrings
+from confounding_robust_inference.utils.docs import WithDocstringsMeta
 
 
-class BasePolicy(Protocol):
+class BasePolicy(Protocol, metaclass=WithDocstringsMeta):
     """Template of policy used in confounding-robust-inference."""
 
     def sample(self, X: torch.Tensor) -> torch.Tensor:
@@ -149,15 +149,3 @@ class MixedPolicy(BasePolicy):
         probs = [policy.prob(T, X) for policy in self.policies]
         ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(dim=0)
         return ret
-
-
-for _cls in [
-    BasePolicy,
-    OnehotPolicy,
-    PolicyDifference,
-    ATEPolicy,
-    GaussianPolicy,
-    LogisticPolicy,
-    MixedPolicy,
-]:
-    _populate_docstrings(_cls)

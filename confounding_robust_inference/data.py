@@ -7,7 +7,7 @@ import torch
 from scipy.stats import norm
 
 from confounding_robust_inference.policies import BasePolicy
-from confounding_robust_inference.utils.docs import _populate_docstrings
+from confounding_robust_inference.utils.docs import WithDocstringsMeta
 from confounding_robust_inference.utils.propensity import estimate_p_t_binary
 from confounding_robust_inference.utils.types import as_tensor, as_tensors
 
@@ -21,7 +21,7 @@ class DataTuple(NamedTuple):
     p_t_xu: torch.Tensor | None
 
 
-class BaseData(Protocol):
+class BaseData(Protocol, metaclass=WithDocstringsMeta):
     """Base class for data used in the numerical experiments."""
 
     def sample(self, n: int) -> DataTuple:
@@ -50,7 +50,7 @@ class BaseData(Protocol):
 
 
 @runtime_checkable
-class BaseDataWithLowerBound(Protocol):
+class BaseDataWithLowerBound(BaseData, Protocol):
     """Base class for data with known ground truth lower bound."""
 
     def evaluate_policy_lower_bound(
@@ -385,14 +385,3 @@ class NLSDataDornGuo2022:
         p_t_x = estimate_p_t_binary(T, X)
 
         return DataTuple(Y, T, X, None, p_t_x, None)
-
-
-for _cls in [
-    BaseData,
-    BaseDataWithLowerBound,
-    SyntheticDataBinary,
-    SyntheticDataContinuous,
-    SyntheticDataKallusZhou2018,
-    SyntheticDataKallusZhou2018Continuous,
-]:
-    _populate_docstrings(_cls)
