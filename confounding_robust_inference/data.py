@@ -92,7 +92,7 @@ class SyntheticDataBinary(BaseDataWithLowerBound):
         self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
-        xi = (torch.rand(n) > 0.5).int()
+        xi = (torch.rand(n) > 0.5).int()  # noqa: F841
         X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
         p_t_x = torch.sigmoid(X @ self.beta_p_t)
         T = (torch.rand(n) < p_t_x).int()
@@ -156,7 +156,7 @@ class SyntheticDataContinuous(BaseDataWithLowerBound):
         self.mu_x = as_tensor([-1, 0.5, -1, 0, -1])
 
     def sample(self, n: int) -> DataTuple:
-        xi = (torch.rand(n) > 0.5).int()
+        xi = (torch.rand(n) > 0.5).int()  # noqa: F841
         X = self.mu_x[None, :] + torch.randn(n * 5).reshape(n, 5)
         dist = torch.distributions.Normal(X @ self.beta_p_t, 1.0)  # type: ignore
         T = dist.sample()  # type: ignore

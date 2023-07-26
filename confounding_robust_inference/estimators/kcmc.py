@@ -425,12 +425,16 @@ class KCMCEstimator(BaseKCMCEstimator):
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
                 scale = np.sqrt(p_t_np * (b - a) * conditional_pdf)
 
-            # H = -as_tensor(self.Psi_np.T @ np.diag(scale ** 2) @ self.Psi_np / self.Psi_np.shape[0])
+            # H = -as_tensor(
+            #     self.Psi_np.T @ np.diag(scale ** 2) @ self.Psi_np / self.Psi_np.shape[0]
+            # )
             # H_inv = torch.pinverse(H)
             X = self.Psi_np * scale[:, None]
             X_mean = X.mean(axis=0, keepdims=True)
             X_scale = X.std(axis=0)
-            X_cor, _ = ledoit_wolf(X / X_scale[None, :])  # A shrinkage estimator for stable estimation of covariance
+            X_cor, _ = ledoit_wolf(
+                X / X_scale[None, :]
+            )  # A shrinkage estimator for stable estimation of covariance
             X_cov = X_scale[:, None] * X_cor * X_scale[None, :]
             # X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
             H_inv = -as_tensor(np.linalg.pinv(X_mean * X_mean.T + X_cov, hermitian=True))
@@ -740,7 +744,9 @@ class GPKCMCEstimator(BaseKCMCEstimator):
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             constraints.extend(
-                get_gp_constraints(w, p_t_np, pi_np, self.Psi_np / Psi_np_scale[None, :], self.sigma2, self.alpha)
+                get_gp_constraints(
+                    w, p_t_np, pi_np, self.Psi_np / Psi_np_scale[None, :], self.sigma2, self.alpha
+                )
             )
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -852,7 +858,9 @@ class DualKCMCPolicyLearner(BaseEstimator):
             eta_kcmc = cp.Variable(self.Psi_np.shape[1])
             beta = cp.Variable(len(policies))
 
-            eta_cmc = (self.Psi_np / Psi_np_scale[None, :]) @ eta_kcmc  # This is still a matrix multiplication
+            eta_cmc = (
+                self.Psi_np / Psi_np_scale[None, :]
+            ) @ eta_kcmc  # This is still a matrix multiplication
             pi_cp = cp.sum([b * pi_np for b, pi_np in zip(beta, pi_np_list)])
             dual = cp.sum(eta_cmc - f_conj_cp(eta_cmc - cp.multiply(Y_np / p_t_np, pi_cp)))
 
