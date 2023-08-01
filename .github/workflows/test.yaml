@@ -5,6 +5,9 @@ on:
       - main
     paths:
       - 'confounding_robust_inference/**'
+      - 'tests/**'
+      - 'tox.ini'
+      - 'pyproject.toml'
 permissions:
     contents: write
 jobs:
