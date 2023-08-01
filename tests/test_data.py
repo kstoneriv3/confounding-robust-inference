@@ -5,6 +5,7 @@ import torch
 
 from confounding_robust_inference.data import (
     BaseData,
+    BaseDataWithLowerBound,
     NLSDataDornGuo2022,
     SyntheticDataBinary,
     SyntheticDataContinuous,
@@ -84,13 +85,13 @@ def test_evaluate_policy_shape(data_cls: Type[BaseData]) -> None:
 
 @pytest.mark.parametrize("data_cls", DATA_CLASSES)
 def test_evaluate_policy_lower_bound_shape(data_cls: Type[BaseData]) -> None:
-    if "DornGuo2022" in data_cls.__name__ or "KallusZhou2018" in data_cls.__name__:
+    if not isinstance(data_cls, BaseDataWithLowerBound):
         pytest.skip("No evaluate_policy_lower_bound method implemeted.")
     n = 30
-    data = data_cls()
+    data = data_cls()  # type: ignore[misc]
     Y, T, X, U, p_t_x, p_t_xu = data.sample(n)
     policy: BasePolicy
-    if "Continuous" in data_cls.__name__:
+    if "Continuous" in data_cls.__name__:  # type: ignore[attr-defined]
         policy = ContinuousPolicy()
     else:
         policy = BinaryPolicy()

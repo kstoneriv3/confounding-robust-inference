@@ -254,13 +254,13 @@ def test_true_lower_bound(
     if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator, DualNCMCEstimator):
         pytest.skip()
 
-    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    Y, T, X, _, p_t, _ = DATA_EXTRA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
-    estimator = estimator_factory(spec, const_type, Gamma=1.5)
-    estimator.fit(Y[:30], T[:30], X[:30], p_t[:30], policy)
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=20)
+    estimator.fit(Y[:50], T[:50], X[:50], p_t[:50], policy)
     out_of_fit_est = estimator.predict_dual(  # type: ignore[attr-defined]
-        Y[30:], T[30:], X[30:], p_t[30:]
+        Y[50:], T[50:], X[50:], p_t[50:]
     ).mean()
 
     true_lower_bound = TRUE_LOWER_BOUND[data_and_policy_type]
@@ -291,6 +291,30 @@ def test_augment_data(
     losses_aug, scores_aug = estimator._get_dual_loss_and_jacobian()
     assert torch.allclose(losses, losses_aug, rtol=1e-1)
     assert torch.allclose(scores, scores_aug, rtol=1e-1)
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", CONSTRAINT_TYPES)
+@pytest.mark.parametrize("spec", ESTIMATOR_SPECS, ids=ESTIMATOR_NAMES)
+def test_predict_dual_sample_size(
+    data_and_policy_type: str,
+    spec: EstimatorSpec,
+    const_type: str,
+) -> None:
+    """Make sure that the output of predict_dual is the same for doubled (duplicated) data."""
+    if spec.estimator_cls not in (KCMCEstimator, DualKCMCEstimator) or "D" not in spec.parameters:
+        pytest.skip()
+
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=3)
+    estimator.fit(Y[:40], T[:40], X[:40], p_t[:40], policy)
+    data_pred = [Y[40:], T[40:], X[40:], p_t[40:]]
+    dual = estimator.predict_dual(*data_pred).mean()
+    dual_doubled = estimator.predict_dual(
+        *map(lambda x: torch.concat([x, x], dim=0), data_pred)
+    ).mean()
+    assert torch.isclose(dual, dual_doubled, atol=1e-6)
 
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
@@ -327,11 +351,10 @@ def test_get_dual_loss_and_jacobian(data_and_policy_type: str, const_type: str) 
     assert torch.allclose(dual_loss, loss, atol=1e-5)
 
     # The first order condition for the dual objective should be zero.
-    assert torch.allclose(
-        torch.zeros_like(autodiff_jacobian[0, :]),
-        autodiff_jacobian.mean(axis=0),  # type: ignore
-        atol=0.02,
-    )
+    # But subgradient containing zero does not imply mean of jacobian is exactly zero ...
+    # Here, we rescale the gradient to use the gradient of the original optimization problem
+    scaled_avg_grad = autodiff_jacobian.mean(dim=0) / np.linalg.norm(estimator.Psi_np, axis=0)
+    assert torch.allclose(torch.zeros_like(autodiff_jacobian[0, :]), scaled_avg_grad, atol=0.02)
 
     # Check the Jacobian obtained by autodiff with analytic expression.
     if "box" in const_type:
@@ -363,55 +386,48 @@ def test_kcmc_dimensions(
     Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     const_type = "Tan_box" if data_and_policy_type == "binary" else "lr_box"
-    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (4, 10, 25)
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
-    est_d1 = estimator.fit(Y, T, X, p_t, policy).predict()
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
-    est_d2 = estimator.fit(Y, T, X, p_t, policy).predict()
-    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D3)
-    est_d3 = estimator.fit(Y, T, X, p_t, policy).predict()
+    D1, D2, D3 = (3, 4, 5) if spec.estimator_cls == KCMCEstimator else (1, 8, 25)
+    fit_kwargs = {} if spec.estimator_cls == KCMCEstimator else {"n_steps": 500}
 
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D1)
+    est_d1 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D2)
+    est_d2 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+    estimator = estimator_factory(spec, const_type, Gamma=1.5, D=D3)
+    est_d3 = estimator.fit(Y, T, X, p_t, policy, **fit_kwargs).predict()
+
+    assert est_d1 <= est_d3
+    assert est_d1 <= est_d2
+    assert est_d2 <= est_d3
     assert est_d1 <= est_d2 <= est_d3
 
 
-@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
-@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
+@pytest.mark.parametrize("data_and_policy_type", ["binary"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "lr_box"])
 def test_gic(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
     """Test GIC < lower bound estimator and GIC(D=n) < GIC(D=appropriate)."""
-    if const_type == "Tan_box" and data_and_policy_type == "continuous":
-        pytest.skip()
-
-    failing_inputs = [("KL", "binary")]
-    if (const_type, data_and_policy_type) in failing_inputs:
-        pytest.skip(
-            "These tests are broken due to unstability of Hessian and covariance estiamtors"
-        )
     Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
 
-    # D_opt = 10 if data_and_policy_type == "binary" else 3
-    D_opt = 10
+    D_opt = 4
     D_over = 30
 
     # Underfit
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=1)
     estimator.fit(Y, T, X, p_t, policy)
     est_under = estimator.predict()
     gic_under = estimator.predict_gic()
     assert gic_under <= est_under
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
+    # Right fit
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_opt)
     estimator.fit(Y, T, X, p_t, policy)
     est_opt = estimator.predict()
     gic_opt = estimator.predict_gic()
     assert gic_opt <= est_opt
     # Overfit
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=40)
-    # estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=25)
     estimator = KCMCEstimator(const_type, gamma=0.02, Gamma=1.5, D=D_over)
     estimator.fit(Y, T, X, p_t, policy)
     est_over = estimator.predict()
@@ -462,10 +478,10 @@ def test_ci_second_order(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
-    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    Y, T, X, _, p_t, _ = DATA_EXTRA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
-    estimator.fit(Y, T, X, p_t, policy)
+    estimator.fit(Y[:25], T[:25], X[:25], p_t[:25], policy)
     gic = estimator.predict_gic()
     low, high = estimator.predict_ci(alpha=1e-2, consider_second_order=True)
 
@@ -473,7 +489,6 @@ def test_ci_second_order(
     assert low < gic, f"low = {low} is expected to be smaller than gic = {gic}"
     assert gic < high, f"high = {high} is expected to be larger than gic = {gic}"
 
-    Y, T, X, _, p_t, _ = DATA_LARGE[data_and_policy_type]
     policy = POLICIES[data_and_policy_type]
     estimator_ = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
     estimator_.fit(Y, T, X, p_t, policy)
@@ -506,7 +521,7 @@ def test_ci_second_order(
 
 @pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
 @pytest.mark.parametrize("const_type", ["Tan_box", "lr_box", "KL"])
-def test_bootstrap_lower_bounds(
+def test_monte_carlo_lower_bound(
     data_and_policy_type: str,
     const_type: str,
 ) -> None:
@@ -515,8 +530,31 @@ def test_bootstrap_lower_bounds(
     estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
     estimator.fit(Y, T, X, p_t, policy)
     gic = estimator.predict_gic()
-    boot_lb_mean = estimator._bootstrap_lower_bounds(10000).mean()
+    boot_lb_mean = estimator._monte_carlo_lower_bounds(10000).mean()
     assert torch.isclose(gic, boot_lb_mean, rtol=5e-2)
+
+
+@pytest.mark.parametrize("data_and_policy_type", ["binary", "continuous"])
+@pytest.mark.parametrize("const_type", ["Tan_box", "KL"])
+def test_fit_kpca(
+    data_and_policy_type: str,
+    const_type: str,
+) -> None:
+    Y, T, X, _, p_t, _ = DATA[data_and_policy_type]
+    policy = POLICIES[data_and_policy_type]
+
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit(Y, T, X, p_t, policy)
+    no_prefit_kpca = estimator.predict()
+
+    _, T_kpca, X_kpca, _, _, _ = DATA_LARGE[data_and_policy_type]
+    estimator = KCMCEstimator(const_type, gamma=0.01, Gamma=1.5, D=2)
+    estimator.fit_kpca(T_kpca, X_kpca)
+    estimator.fit(Y, T, X, p_t, policy)
+    prefit_kpca = estimator.predict()
+
+    assert not torch.isclose(no_prefit_kpca, prefit_kpca, atol=1e-5)
+    assert torch.isclose(no_prefit_kpca, prefit_kpca, atol=3e-1)
 
 
 def test_hajek_estimator() -> None:

@@ -7,6 +7,7 @@ import cvxpy as cp
 import numpy as np
 import torch
 from scipy.stats import norm
+from sklearn.covariance import ledoit_wolf
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.preprocessing import StandardScaler
@@ -57,19 +58,20 @@ def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
         )
 
 
-def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray) -> np.ndarray:
+def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale: bool = True) -> np.ndarray:
     """Black magic for choosing orthogonal basis."""
     # Rescale the kernel per sample so that it's scaler better matches that of Y
     Psi = Psi / p_t[:, None]
     # constant basis is essential for numerical stability of f-divergence constraint
     Psi = np.concatenate([Psi, np.ones_like(p_t)[:, None]], axis=1)
-    # Rescale per basis
-    Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
+    # Do not rescale per basis here!!!
+    # Otherwise, test data given to predict dual will be scaled differently.
+    # Psi = Psi / np.linalg.norm(Psi, axis=0, keepdims=True)
     return Psi
 
 
 class KCMCEstimator(BaseKCMCEstimator):
-    """Kernel Conditional Moment Constraints (KCMC) Estimator.
+    """Kernel Conditional Moment Constraints (KCMC) Estimator by Ishikawa, He (2023).
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
@@ -112,6 +114,29 @@ class KCMCEstimator(BaseKCMCEstimator):
             "matrices involved. Please use the features with caution."
         )
 
+    def fit_kpca(
+        self,
+        T: torch.Tensor,
+        X: torch.Tensor,
+    ) -> KCMCEstimator:
+        """Fit the kernel principal component analysis (KPCA) for the orthogonal function class.
+
+        If this method is called before the :func:`fit` method, fit method will use the KPCA model
+        fit by this method. Fitting KPCA with your validation data can be useful when you use
+        different data for your :func:`fit` and :func:`predict_dual` methods.
+
+        Args:
+            T: Action variable (i.e. treatment).
+            X: Context variable. Its dtype must be
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+        """
+        T_np, X_np = as_ndarrays(T, X)
+        TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
+        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
+        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
+        self.Psi_np_pipeline.fit(TX_np)
+        return self
+
     def fit(
         self,
         Y: torch.Tensor,
@@ -131,13 +156,19 @@ class KCMCEstimator(BaseKCMCEstimator):
         n = T.shape[0]
         r = Y * self.pi
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
+
+        # concatenate T and X
+        # TODO: need to handle the case when T is categorical by something like onehot encoding...
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
-        self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
-        self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
-        self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        # Find orthognal function class
+        if not hasattr(self, "Psi_np_pipeline"):
+            self.fit_kpca(T, X)
+        self.Psi_np = self.Psi_np_pipeline.transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
+        # TODO: replace w with w_tilde = p_t * w, for numerical stability
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
             warnings.simplefilter(WARNINGS_MODE)
@@ -147,7 +178,7 @@ class KCMCEstimator(BaseKCMCEstimator):
             objective = cp.Minimize(r_np.T @ w)
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
-            kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np)
+            kernel_consts = get_kernel_constraints(w, p_t_np, self.Psi_np / Psi_np_scale[None, :])
             constraints.extend(kernel_consts)
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -163,7 +194,9 @@ class KCMCEstimator(BaseKCMCEstimator):
         self.w[:] = as_tensor(w.value)
         self.fitted_lower_bound = torch.mean(self.w * r)
         self.problem = problem
-        self.eta_kcmc = as_tensor(-kernel_consts[0].dual_value)  # need to match sign!
+        self.eta_kcmc = as_tensor(
+            -kernel_consts[0].dual_value / Psi_np_scale
+        )  # need to match sign!
         # For box constraints, the dual objective does not depend on eta_f so it does not matter.
         self.eta_f = as_tensor(
             [f_div_const[0].dual_value] if "box" not in self.const_type else [1.0]
@@ -200,19 +233,19 @@ class KCMCEstimator(BaseKCMCEstimator):
         n = self.Y.shape[0]
         _, scores = self._get_dual_loss_and_jacobian()
         V = scores.T @ scores / n
-        J = self._get_dual_hessian()  # negative definite, as dual objective is concave
-        J_inv = torch.pinverse(J)
+        J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
+        # breakpoint()
         return gic
 
     def predict_ci(
-        self, n_boot: int = 10000, alpha: float = 0.05, consider_second_order: bool = False
+        self, n_mc: int = 10000, alpha: float = 0.05, consider_second_order: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
         Args:
-            n_boot: The number of Monte Carlo samples used to calculate the percentile of the
-                asymptotic distribution by bootstraping.
+            n_mc: The number of Monte Carlo samples used to calculate the percentile of the
+                asymptotic distribution.
             alpha: Significance level of used for the confidence interval.
             consider_second_order: If True, consider the second order asymptotics similarly to GIC.
                 When second order asymptotics is considered, Monte Carlo sampling is used for
@@ -220,33 +253,31 @@ class KCMCEstimator(BaseKCMCEstimator):
         """
         if consider_second_order:
             self._warn_asymptotics()
-            boot_lb = self._bootstrap_lower_bounds(n_boot)
-            low = torch.quantile(boot_lb, alpha / 2)
-            high = torch.quantile(boot_lb, 1 - alpha / 2)
+            mc_lb = self._monte_carlo_lower_bounds(n_mc)
+            low = torch.quantile(mc_lb, alpha / 2)
+            high = torch.quantile(mc_lb, 1 - alpha / 2)
         else:
             lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
             low, high = get_normal_ci(lb_samples, alpha)
         return low, high
 
-    def _bootstrap_lower_bounds(self, n_boot: int) -> torch.Tensor:
+    def _monte_carlo_lower_bounds(self, n_mc: int) -> torch.Tensor:
         n = self.Y.shape[0]
         losses, scores = self._get_dual_loss_and_jacobian()
         losses -= losses.mean()
         l_s = torch.concat([losses[:, None], scores], dim=1)
         V_joint = l_s.T @ l_s / n
-        J = self._get_dual_hessian()
-        J_inv = torch.pinverse(J)
+        # breakpoint()
+        J_inv = self._get_dual_hessian_inv()
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
-        unif_samples = en.draw(n_boot, dtype=self.Y.dtype)
+        unif_samples = en.draw(n_mc, dtype=self.Y.dtype)
         normal_samples = torch.distributions.Normal(0, 1).icdf(unif_samples)  # type: ignore
-        boot_l_s = normal_samples @ torch.linalg.cholesky(V_joint / n).mT
-        boot_l_s[:, 0] += self.fitted_lower_bound
-        boot_losses, boot_scores = torch.split(boot_l_s, [1, self.eta.shape[0]], dim=1)
-        boot_lb = (
-            boot_losses[:, 0] + torch.einsum("mi,ij,mj->m", boot_scores, J_inv, boot_scores) / 2
-        )
-        return boot_lb
+        mc_l_s = normal_samples @ torch.linalg.cholesky(V_joint / n).mT
+        mc_l_s[:, 0] += self.fitted_lower_bound
+        mc_losses, mc_scores = torch.split(mc_l_s, [1, self.eta.shape[0]], dim=1)
+        mc_lb = mc_losses[:, 0] + torch.einsum("mi,ij,mj->m", mc_scores, J_inv, mc_scores) / 2
+        return mc_lb
 
     def _get_fitted_dual_loss(self, eta: torch.Tensor) -> torch.Tensor:
         # The dual objective does not depend on eta_f for box constraints
@@ -288,7 +319,7 @@ class KCMCEstimator(BaseKCMCEstimator):
             T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             Psi_np = self.Psi_np_pipeline.transform(TX_np)
-            Psi_np = apply_black_magic(Psi_np, p_t_np)
+            Psi_np = apply_black_magic(Psi_np, p_t_np, resacle=False)
             Psi = as_tensor(Psi_np)
             eta_cmc = Psi @ eta_kcmc
             loss = get_dual_objective(
@@ -373,14 +404,12 @@ class KCMCEstimator(BaseKCMCEstimator):
         else:
             return torch.concat([self.eta_kcmc, self.eta_f])
 
-    def _get_dual_hessian(self) -> torch.Tensor:
+    def _get_dual_hessian_inv(self) -> torch.Tensor:
         if self.const_type in ("Tan_box", "lr_box", "total_variation"):
             # Use numpy for computation in this block.
             Y_np, T_np, X_np, p_t_np, pi_np, eta_kcmc_np = as_ndarrays(
                 self.Y, self.T, self.X, self.p_t, self.pi, self.eta_kcmc
             )
-            n = Y_np.shape[0]
-
             # estimate p_{y|tx}(Pshi @ eta_kcmc)
             TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
             TX_np = StandardScaler().fit_transform(TX_np)
@@ -392,19 +421,34 @@ class KCMCEstimator(BaseKCMCEstimator):
 
             if self.const_type == "total_variation":
                 conditional_pdf = norm.pdf(eta_cmc + 0.5, loc=eta_cmc_mean, scale=eta_cmc_std)
-                diag = np.diag(conditional_pdf)
+                scale = np.sqrt(conditional_pdf)
             else:
                 a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
-                diag = np.diag(p_t_np * (b - a) * conditional_pdf)
+                scale = np.sqrt(p_t_np * (b - a) * conditional_pdf)
 
-            H = -as_tensor(self.Psi_np.T @ diag @ self.Psi_np / n)
+            # H = -as_tensor(
+            #     self.Psi_np.T @ np.diag(scale ** 2) @ self.Psi_np / self.Psi_np.shape[0]
+            # )
+            # H_inv = torch.pinverse(H)
+            X = self.Psi_np * scale[:, None]
+            X_mean = X.mean(axis=0, keepdims=True)
+            X_scale = X.std(axis=0)
+            X_cor, _ = ledoit_wolf(
+                X / X_scale[None, :]
+            )  # A shrinkage estimator for stable estimation of covariance
+            X_cov = X_scale[:, None] * X_cor * X_scale[None, :]
+            # X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
+            H_inv = -as_tensor(np.linalg.pinv(X_mean * X_mean.T + X_cov, hermitian=True))
         elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
             H = hessian(lambda eta: self._get_fitted_dual_loss(eta).mean(), eta)  # type: ignore
+            H_inv = torch.pinverse(H)
         else:
-            raise NotImplementedError  # Estimation is very unstable.
-        return H
+            # Estimation is very unstable or difficult due to non-differentiability.
+            raise NotImplementedError
+
+        return H_inv
 
     def _get_dual_loss_and_jacobian(self) -> tuple[torch.Tensor, torch.Tensor]:
         eta = self.eta.clone().detach().requires_grad_(True)
@@ -421,7 +465,16 @@ class KCMCEstimator(BaseKCMCEstimator):
 
 
 class DualKCMCEstimator(BaseKCMCEstimator):
-    """Dual Kernel Conditional Moment Constraints (KCMC) Estimator.
+    """Dual Kernel Conditional Moment Constraints (KCMC) Estimator trained by
+    stochastic gradient descent.
+
+    This estimator solves the dual problem of KCMC estimator using stochastic gradient descent
+    (SGD). Though the quality of the solution is better when solving the primal problem by a convex
+    optimization solver, SGD gives an advantage of scalability when the number of samples is large.
+
+    Note:
+        Though SGD is a widely-adopted means of solving this type of problem, we may be able to
+        improve it by stochastic ADMM (Ouyang, He, et. al., 2013).
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
@@ -490,6 +543,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         kwargs = {
             "lr": 3e-2,
@@ -501,7 +555,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
 
         for i in range(n_steps):
             train_idx = torch.randint(n, (batch_size,))
-            eta_cmc = as_tensor(self.Psi_np)[train_idx] @ self.eta_kcmc
+            eta_cmc = as_tensor(self.Psi_np / Psi_np_scale[None, :])[train_idx] @ self.eta_kcmc
             objective = -get_dual_objective(
                 self.Y[train_idx],
                 self.p_t[train_idx],
@@ -521,7 +575,7 @@ class DualKCMCEstimator(BaseKCMCEstimator):
         for i in range((n + m - 1) // m):
             val_idx = slice(m * i, min(n, m * (i + 1)))
             with torch.no_grad():
-                eta_cmc = as_tensor(self.Psi_np)[val_idx] @ self.eta_kcmc
+                eta_cmc = as_tensor(self.Psi_np / Psi_np_scale[None, :])[val_idx] @ self.eta_kcmc
                 lower_bounds[val_idx] = get_dual_objective(
                     self.Y[val_idx],
                     self.p_t[val_idx],
@@ -564,7 +618,8 @@ class DualKCMCEstimator(BaseKCMCEstimator):
 
 
 class GPKCMCEstimator(BaseKCMCEstimator):
-    """Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator.
+    """Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator
+    by Ishikawa, He (2023).
 
     Args:
         const_type: Type of the constraint used. It must be one of "box", "KL", "inverse_KL",
@@ -678,6 +733,8 @@ class GPKCMCEstimator(BaseKCMCEstimator):
 
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -689,7 +746,9 @@ class GPKCMCEstimator(BaseKCMCEstimator):
 
             constraints: list[cp.Constraint] = [np.zeros(n) <= w]
             constraints.extend(
-                get_gp_constraints(w, p_t_np, pi_np, self.Psi_np, self.sigma2, self.alpha)
+                get_gp_constraints(
+                    w, p_t_np, pi_np, self.Psi_np / Psi_np_scale[None, :], self.sigma2, self.alpha
+                )
             )
             if "box" in self.const_type:
                 constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
@@ -755,6 +814,18 @@ class DualKCMCPolicyLearner(BaseEstimator):
         p_t: torch.Tensor,
         policies: Sequence[BasePolicy],  # type: ignore[override]
     ) -> DualKCMCPolicyLearner:
+        """Learns the policy that maximizes the lower bound of the given data.
+
+        Args:
+            Y: Outcome variable. It must be a tensor of shape [n_samples] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            T: Action variable (i.e. treatment). It must be a tensor of shape [n_samples].
+            X: Context variable. It must be a tensor of shape [n_samples, n_dim] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            p_t: Nominal propensity p_obs(t|x). It must be a tensor of shape [n_samples] and type
+                confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.
+            policies: Policies whose mixture constitutes the policy space for the policy learning.
+        """
         assert_input(Y, T, X, p_t)
         assert len(policies) >= 1
         self.Y = Y
@@ -771,6 +842,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
         self.Psi_np_pipeline = OrthogonalBasis(self.D, self.kernel)
         self.Psi_np = self.Psi_np_pipeline.fit_transform(TX_np)
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         a_w_tilde, b_w_tilde = self.get_a_b_w_tilde(p_t)
         a_w_tilde_np, b_w_tilde_np = as_ndarrays(a_w_tilde, b_w_tilde)
@@ -788,7 +860,9 @@ class DualKCMCPolicyLearner(BaseEstimator):
             eta_kcmc = cp.Variable(self.Psi_np.shape[1])
             beta = cp.Variable(len(policies))
 
-            eta_cmc = self.Psi_np @ eta_kcmc  # This is still a matrix multiplication
+            eta_cmc = (
+                self.Psi_np / Psi_np_scale[None, :]
+            ) @ eta_kcmc  # This is still a matrix multiplication
             pi_cp = cp.sum([b * pi_np for b, pi_np in zip(beta, pi_np_list)])
             dual = cp.sum(eta_cmc - f_conj_cp(eta_cmc - cp.multiply(Y_np / p_t_np, pi_cp)))
 
@@ -802,7 +876,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
             try_solvers(problem, solvers)
 
         self.eta_kcmc = torch.zeros_like(p_t[: self.Psi_np.shape[1]])
-        self.eta_kcmc[:] = as_tensor(eta_kcmc.value)
+        self.eta_kcmc[:] = as_tensor(eta_kcmc.value / Psi_np_scale[None, :])
         self.beta = torch.zeros_like(p_t[: len(policies)])
         self.beta[:] = as_tensor(beta.value)
         return self
@@ -840,6 +914,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
         return low, high
 
     def predict_policy(self) -> MixedPolicy:
+        """Returns the learned optimal policy."""
         return MixedPolicy(self.policies, self.beta)
 
     def dual_objective(

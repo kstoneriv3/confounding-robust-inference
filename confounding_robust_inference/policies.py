@@ -2,18 +2,20 @@ from typing import Any, Protocol, Sequence
 
 import torch
 
+from confounding_robust_inference.utils.docs import WithDocstringsMeta
 
-class BasePolicy(Protocol):
+
+class BasePolicy(Protocol, metaclass=WithDocstringsMeta):
     """Template of policy used in confounding-robust-inference."""
 
     def sample(self, X: torch.Tensor) -> torch.Tensor:
         """Sample T given X from the policy.
 
         Args:
-            X: tensor of shape [n_samples, n_dim]
+            X: A tensor of shape [n_samples, n_dim]
 
         Returns:
-            T: tensor of shape [n_samples]
+            T: A tensor of shape [n_samples]
         """
         raise NotImplementedError
 
@@ -25,10 +27,10 @@ class BasePolicy(Protocol):
         Zhous (2018).
 
         Args:
-            X: tensor of shape [n_samples, n_dim]
+            X: A tensor of shape [n_samples, n_dim]
 
         Returns:
-            T: tensor of shape [n_samples]
+            T: A tensor of shape [n_samples]
         """
         raise NotImplementedError
 
@@ -145,5 +147,5 @@ class MixedPolicy(BasePolicy):
 
     def prob(self, T: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
         probs = [policy.prob(T, X) for policy in self.policies]
-        ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(axis=0)  # type: ignore
+        ret = torch.stack([p * b for p, b in zip(probs, self.beta)]).sum(dim=0)
         return ret
