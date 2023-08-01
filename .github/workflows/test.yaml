@@ -1,0 +1,24 @@
+name: Test
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'confounding_robust_inference/**'
+permissions:
+    contents: write
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - name: Install pandoc
+        run: |
+          sudo apt-get install --no-install-recommends pandoc
+      - name: Install tox
+        run:
+          pip install tox
+      - name: Run test
+        run:
+          tox -e test
