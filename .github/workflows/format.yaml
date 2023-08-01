@@ -1,0 +1,25 @@
+name: Format
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'confounding_robust_inference/**'
+      - 'tests/**'
+      - 'examples/**'
+      - 'tox.ini'
+      - 'pyproject.toml'
+permissions:
+    contents: write
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - name: Install tox
+        run:
+          pip install tox
+      - name: Format and lint
+        run:
+          tox -e format
