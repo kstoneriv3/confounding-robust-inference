@@ -13,9 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
-      - name: Install pandoc
-        run: |
-          sudo apt-get install --no-install-recommends pandoc
       - name: Install tox
         run:
           pip install tox
