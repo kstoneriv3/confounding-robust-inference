@@ -319,6 +319,16 @@ class NLSDataDornGuo2022:
         self.data: DataTuple | None = None
 
     def sample(self, n: int = 667) -> DataTuple:
+        """Load the NLS data.
+
+        Args:
+            n: Size of data. Users are not supposed to provide n, but it is there to indicate
+                the sample size of this dataset is 667.
+
+        Returns:
+            Namedtuple that contains the generated data, whose attributes are
+            Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.
+        """
         if n != 667:
             raise ValueError(
                 f"n = {n} is given as the input but there are n = 667 data points in this dataset."
