@@ -17,7 +17,7 @@ class BaseEstimator(Protocol, metaclass=WithDocstringsMeta):
         p_t: torch.Tensor,
         policy: BasePolicy,
     ) -> BaseEstimator:
-        """Solve the minimization problem for obtaining the lower bound for the given data.
+        """Estimate the lower bound of the policy value.
 
         Args:
             Y: Outcome variable. It must be of shape [n_samples] and type
