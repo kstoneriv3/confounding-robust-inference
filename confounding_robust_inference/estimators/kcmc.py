@@ -158,6 +158,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         r_np, Y_np, T_np, X_np, p_t_np, pi_np = as_ndarrays(r, Y, T, X, p_t, self.pi)
 
         # concatenate T and X
+        # TODO: need to handle the case when T is categorical by something like onehot encoding...
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
 
         # Find orthognal function class
@@ -167,6 +168,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
         Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
+        # TODO: replace w with w_tilde = p_t * w, for numerical stability
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
             warnings.simplefilter(WARNINGS_MODE)
