@@ -1,5 +1,3 @@
-![image](assets/aistats_poster.png)
-
 Kernel Conditional Moment Constraints for Confounding Robust Inference
 ======================================================================
 [![arXiv](https://img.shields.io/badge/arXiv-2302.13348-b31b1b)](https://arxiv.org/abs/2302.13348)
@@ -53,3 +51,7 @@ If you found this library useful in your research, please consider citing [the p
   organization={PMLR}
 }
 ```
+
+Overview of the paper
+---------------------
+![image](assets/aistats_poster.png)
