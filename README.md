@@ -32,7 +32,7 @@ If you would like to do these in your local environment, run
 ```bash
 make
 ```
-Alternatively, you can conduct these in an isolated environment using tox as 
+Alternatively, you can conduct these in an isolated python environment using tox as 
 ```bash
 tox
 ```
