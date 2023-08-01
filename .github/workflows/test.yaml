@@ -1,4 +1,4 @@
-name: Format
+name: Test
 on:
   push:
     branches:
@@ -23,3 +23,6 @@ jobs:
       - name: Format and lint
         run:
           tox -e format
+      - name: Format and lint
+        run:
+          tox -e test
