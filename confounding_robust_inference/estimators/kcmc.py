@@ -58,10 +58,12 @@ def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
         )
 
 
-def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale: bool = True) -> np.ndarray:
+def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, pi: Optional[np.ndarray] = None) -> np.ndarray:
     """Black magic for choosing orthogonal basis."""
-    # Rescale the kernel per sample so that it's scaler better matches that of Y
+    # Rescale the kernel per sample so that it's scale better matches that of Y
     Psi = Psi / p_t[:, None]
+    if pi is not None:
+        Psi = Psi * pi[:, None]
     # constant basis is essential for numerical stability of f-divergence constraint
     Psi = np.concatenate([Psi, np.ones_like(p_t)[:, None]], axis=1)
     # Do not rescale per basis here!!!
@@ -71,7 +73,7 @@ def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, rescale: bool = True) ->
 
 
 class KCMCEstimator(BaseKCMCEstimator):
-    """Kernel Conditional Moment Constraints (KCMC) Estimator by Ishikawa, He (2023).
+    r"""Kernel Conditional Moment Constraints (KCMC) Estimator by Ishikawa, He (2023).
 
     Args:
         const_type: Type of the constraint used. It must be one of "Tan_box", "lr_box", "KL",
@@ -83,6 +85,11 @@ class KCMCEstimator(BaseKCMCEstimator):
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
         kernel: Kernel used in the low-rank kernel quantile regression.
+        rescale_by_policy_prob: Whether to rescale the kernel by policy probability $\pi(t|x)$. Rescaling by policy can
+        help obtaining tighter lower bounds in some cases such as continuous treatment. Note that rescaling the kernel
+            by the policy probability makes the lower bound non-differentiable so this option should not be used for
+            gradient-based policy learning. One should still be able to make it differentiable by replaceing cvxpy
+            with cvxpylayers to make use of differentiable convex programming.
     """
 
     def __init__(
@@ -92,6 +99,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         Gamma: float | None = None,
         D: int = 30,
         kernel: Kernel | None = None,
+        rescale_by_policy_prob: bool = False,
     ) -> None:
         assert const_type in CONSTRAINT_TYPES
         if "box" in const_type:
@@ -106,6 +114,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         self.Gamma = Gamma if Gamma is not None else 1.0
         self.D = D
         self.kernel = kernel
+        self.rescale_by_policy_prob = rescale_by_policy_prob
 
     def _warn_asymptotics(self) -> None:
         warnings.warn(
@@ -165,7 +174,10 @@ class KCMCEstimator(BaseKCMCEstimator):
         if not hasattr(self, "Psi_np_pipeline"):
             self.fit_kpca(T, X)
         self.Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
+        if self.rescale_by_policy_prob:
+            self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, pi_np)
+        else:
+            self.Psi_np = apply_black_magic(self.Psi_np, p_t_np)
         Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # TODO: replace w with w_tilde = p_t * w, for numerical stability
@@ -216,10 +228,13 @@ class KCMCEstimator(BaseKCMCEstimator):
         assert hasattr(self, "fitted_lower_bound")
         assert_input(Y, T, X, p_t)
         pi = self.policy.prob(T, X)
-        T_np, X_np, p_t_np = as_ndarrays(T, X, p_t)
+        T_np, X_np, p_t_np, pi_np = as_ndarrays(T, X, p_t, pi)
         TX_np = np.concatenate([T_np[:, None], X_np], axis=1)
         Psi_np = self.Psi_np_pipeline.transform(TX_np)
-        Psi_np = apply_black_magic(Psi_np, p_t_np)
+        if self.rescale_by_policy_prob:
+            Psi_np = apply_black_magic(Psi_np, p_t_np, pi_np)
+        else:
+            Psi_np = apply_black_magic(Psi_np, p_t_np)
         Psi = as_tensor(Psi_np)
         eta_cmc = Psi @ self.eta_kcmc
         dual = get_dual_objective(
@@ -267,7 +282,6 @@ class KCMCEstimator(BaseKCMCEstimator):
         losses -= losses.mean()
         l_s = torch.concat([losses[:, None], scores], dim=1)
         V_joint = l_s.T @ l_s / n
-        # breakpoint()
         J_inv = self._get_dual_hessian_inv()
 
         en = torch.quasirandom.SobolEngine(1 + self.eta.shape[0], scramble=True)  # type: ignore
