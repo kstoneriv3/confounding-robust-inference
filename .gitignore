@@ -15,6 +15,9 @@ tags
 
 *tmp/
 
+# figures
+exmaple/fig/
+
 # Distribution / packaging
 .Python
 build/
