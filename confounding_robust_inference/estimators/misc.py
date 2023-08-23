@@ -133,7 +133,7 @@ def get_normal_ci(samples: torch.Tensor, alpha: float) -> tuple[torch.Tensor, to
     n = len(samples)
     mean = torch.mean(samples)
     std = torch.std(samples)  # unbiased estimate
-    asymp_dist = torch.distributions.Normal(mean, std / n)  # type: ignore
+    asymp_dist = torch.distributions.Normal(mean, std / n ** 0.5)  # type: ignore
     low = asymp_dist.icdf(torch.as_tensor(alpha / 2.0))  # type: ignore
     high = asymp_dist.icdf(torch.as_tensor(1.0 - alpha / 2.0))  # type: ignore
     return low, high

@@ -917,7 +917,7 @@ class DualKCMCPolicyLearner(BaseEstimator):
         )  # mixed policy prob
         return self.dual_objective(Y, p_t, pi, eta_cmc)
 
-    def predict_ci(self, alpha: float) -> tuple[torch.Tensor, torch.Tensor]:
+    def predict_ci(self, alpha: float = 0.05) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
         Args:
