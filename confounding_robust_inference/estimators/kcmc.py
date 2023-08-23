@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Literal, Sequence, Type
+from typing import Any, Literal, Optional, Sequence, Type
 
 import cvxpy as cp
 import numpy as np
@@ -58,7 +58,9 @@ def try_solvers(problem: cp.Problem, solvers: list[str]) -> None:
         )
 
 
-def apply_black_magic(Psi: np.ndarray, p_t: np.ndarray, pi: Optional[np.ndarray] = None) -> np.ndarray:
+def apply_black_magic(
+    Psi: np.ndarray, p_t: np.ndarray, pi: Optional[np.ndarray] = None
+) -> np.ndarray:
     """Black magic for choosing orthogonal basis."""
     # Rescale the kernel per sample so that it's scale better matches that of Y
     Psi = Psi / p_t[:, None]
@@ -85,11 +87,12 @@ class KCMCEstimator(BaseKCMCEstimator):
             When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.
         D: Dimension of the low-rank approximation used in the kernel quantile regression.
         kernel: Kernel used in the low-rank kernel quantile regression.
-        rescale_by_policy_prob: Whether to rescale the kernel by policy probability $\pi(t|x)$. Rescaling by policy can
-        help obtaining tighter lower bounds in some cases such as continuous treatment. Note that rescaling the kernel
-            by the policy probability makes the lower bound non-differentiable so this option should not be used for
-            gradient-based policy learning. One should still be able to make it differentiable by replaceing cvxpy
-            with cvxpylayers to make use of differentiable convex programming.
+        rescale_by_policy_prob: Whether to rescale the kernel by policy probability $\pi(t|x)$.
+            Rescaling by policy can help obtaining tighter lower bounds in some cases such as
+            continuous treatment. Note that rescaling the kernel by the policy probability makes
+            the lower bound non-differentiable so this option should not be used for gradient-based
+            policy learning.  One should still be able to make it differentiable by replaceing
+            cvxpy with cvxpylayers to make use of differentiable convex programming.
     """
 
     def __init__(

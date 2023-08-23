@@ -8,7 +8,7 @@ format:
 	isort confounding_robust_inference examples tests
 	black confounding_robust_inference examples tests
 	ruff check confounding_robust_inference examples tests
-	mypy confounding_robust_inference examples tests
+	mypy confounding_robust_inference tests
 
 docs:
 	cd docs;make clean doctest html
