@@ -74,7 +74,7 @@ TORCH_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor
 }
 
 # Conjugate when we have primal constraint 0 <= w
-TORCH_EXTENDED_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
+TORCH_MONOTONIZED_F_DIV_CONJUGATE_FUNCTIONS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "KL": lambda v: torch.exp(v - 1),
     "inverse_KL": lambda v: -1 - torch.log(-v),
     "Jensen_Shannon": lambda v: torch.where(
@@ -124,7 +124,7 @@ def get_f_conjugate(
             return torch.where(v < 0.0, a_w_tilde * v, b_w_tilde * v)
 
     else:
-        f_conj = TORCH_EXTENDED_F_DIV_CONJUGATE_FUNCTIONS[const_type]
+        f_conj = TORCH_MONOTONIZED_F_DIV_CONJUGATE_FUNCTIONS[const_type]
     return f_conj
 
 
