@@ -253,7 +253,6 @@ class KCMCEstimator(BaseKCMCEstimator):
         V = scores.T @ scores / n
         J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
         gic = self.fitted_lower_bound + torch.einsum("ij, ji->", J_inv, V) / 2 / n
-        # breakpoint()
         return gic
 
     def predict_ci(
@@ -439,10 +438,12 @@ class KCMCEstimator(BaseKCMCEstimator):
             if self.const_type == "total_variation":
                 conditional_pdf = norm.pdf(eta_cmc + 0.5, loc=eta_cmc_mean, scale=eta_cmc_std)
                 scale = np.sqrt(conditional_pdf)
-            else:
+            elif self.const_type in ("Tan_box", "lr_box"):
                 a, b = get_a_b(p_t_np, self.Gamma, self.const_type)
                 conditional_pdf = norm.pdf(eta_cmc, loc=eta_cmc_mean, scale=eta_cmc_std)
                 scale = np.sqrt(p_t_np * (b - a) * conditional_pdf)
+            else:
+                assert False
 
             # H = -as_tensor(
             #     self.Psi_np.T @ np.diag(scale ** 2) @ self.Psi_np / self.Psi_np.shape[0]
@@ -455,7 +456,6 @@ class KCMCEstimator(BaseKCMCEstimator):
                 X / X_scale[None, :]
             )  # A shrinkage estimator for stable estimation of covariance
             X_cov = X_scale[:, None] * X_cor * X_scale[None, :]
-            # X_cov, _ = ledoit_wolf(X)  # A shrinkage estimator for stable estimation of covariance
             H_inv = -as_tensor(np.linalg.pinv(X_mean * X_mean.T + X_cov, hermitian=True))
         elif self.const_type == "KL":
             eta = torch.tensor(self.eta.data, requires_grad=True)
