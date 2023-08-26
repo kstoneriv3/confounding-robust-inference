@@ -256,7 +256,9 @@ class KCMCEstimator(BaseKCMCEstimator):
         return gic
 
     def predict_ci(
-        self, alpha: float = 0.05, consider_second_order: bool = False,  # n_mc: int = 2 ** 15, 
+        self,
+        alpha: float = 0.05,
+        consider_second_order: bool = False,  # n_mc: int = 2 ** 15,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
