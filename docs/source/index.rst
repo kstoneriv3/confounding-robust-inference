@@ -22,13 +22,13 @@ Welcome to confounding-robust-inference's documentation!
 
    license
 
-Intro
------
+Introduction
+------------
 
-This package implements confounding robust estimators discussed in [1]_.
-Such estimators robustifies the classical inverse probability weighting estimator, by considering the worst-case confounding and provide lower bound (or upper bound) of the policy value.
+This package implements confounding robust estimators discussed in Ishikawa and Niao (2023) [1]_.
+These estimators robustifies the classical inverse probability weighting estimator, by considering the worst-case confounding and provide lower bound (or upper bound) of the policy value.
 
-The supported estimators includes: inverse probability weighting (IPW) estimator, Hajek estimator, kernel conditional moment constraint (KCMC) estimator.
+The supported estimators includes: inverse probability weighting (IPW) estimator, Hajek estimator, kernel conditional moment constraint (KCMC) estimator, and quantile balancing (QB) estimator.
 For the exhausive list of supported estimators, see :doc:`api_reference/estimators`.
 
 Referece
