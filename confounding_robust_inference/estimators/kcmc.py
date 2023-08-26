@@ -256,26 +256,31 @@ class KCMCEstimator(BaseKCMCEstimator):
         return gic
 
     def predict_ci(
-        self, n_mc: int = 2 ** 15, alpha: float = 0.05, consider_second_order: bool = False
+        self, alpha: float = 0.05, consider_second_order: bool = False,  # n_mc: int = 2 ** 15, 
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate confidence interval of the lower bound.
 
         Args:
-            n_mc: The number of Monte Carlo samples used to calculate the percentile of the
-                asymptotic distribution.
             alpha: Significance level of used for the confidence interval.
             consider_second_order: If True, consider the second order asymptotics similarly to GIC.
                 When second order asymptotics is considered, Monte Carlo sampling is used for
                 calculating the percentile of the asymptotic distribution.
         """
+        # n_mc: The number of Monte Carlo samples used to calculate the percentile of the
+        #     asymptotic distribution.
         if consider_second_order:
             self._warn_asymptotics()
-            mc_lb = self._monte_carlo_lower_bounds(n_mc)
-            low = torch.quantile(mc_lb, alpha / 2)
-            high = torch.quantile(mc_lb, 1 - alpha / 2)
+            n = self.Y.shape[0]
+            lb_samples, scores = self._get_dual_loss_and_jacobian()
+            V = scores.T @ scores / n
+            J_inv = self._get_dual_hessian_inv()  # negative definite, as dual objective is concave
+            lb_samples += torch.einsum("ij, ji->", J_inv, V) / 2 / n
+            # mc_lb = self._monte_carlo_lower_bounds(n_mc)
+            # low = torch.quantile(mc_lb, alpha / 2)
+            # high = torch.quantile(mc_lb, 1 - alpha / 2)
         else:
             lb_samples = self.predict_dual(self.Y, self.T, self.X, self.p_t)
-            low, high = get_normal_ci(lb_samples, alpha)
+        low, high = get_normal_ci(lb_samples, alpha)
         return low, high
 
     def _monte_carlo_lower_bounds(self, n_mc: int) -> torch.Tensor:
