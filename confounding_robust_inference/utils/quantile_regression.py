@@ -1,4 +1,5 @@
 import torch
+import torchmin
 
 
 class TorchQuantileRegressor:
@@ -41,18 +42,15 @@ class TorchQuantileRegressor:
         self.quantile = quantile
 
     def fit(self, X: torch.Tensor, Y: torch.Tensor, n_iter: int = 200) -> "TorchQuantileRegressor":
-        Y_scale = Y.std() or 1.0  # avoid zero division
-        Y = Y / Y_scale
-        L = max(self.quantile, 1 - self.quantile) * torch.linalg.norm(X, dim=1).mean()
-        beta = torch.zeros(X.shape[1], requires_grad=True, dtype=float)  # type: ignore
-        beta.data[-1] = Y.mean()
-        optim = torch.optim.SGD([beta], lr=0.05 / L)
-        for i in range(n_iter):
-            loss = self.quantile_loss(Y - X @ beta, self.quantile).mean()
-            loss.backward()  # type: ignore
-            optim.step()
-            optim.zero_grad()
-        self.coef_ = beta.data * Y_scale
+        beta_init = torch.zeros(X.shape[1], dtype=Y.dtype)
+        beta_init[-1] = Y.mean()
+        res = torchmin.bfgs._minimize_bfgs(
+            lambda beta: self.quantile_loss(Y - X @ beta, self.quantile).mean(),
+            beta_init,
+            lr=0.5,
+            max_iter=200,
+        )
+        self.coef_ = res.x
         return self
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:

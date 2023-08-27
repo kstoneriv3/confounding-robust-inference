@@ -24,6 +24,7 @@ dependencies = [
     "scipy>=1.10.0",
     "statsmodels>=0.13.5",
     "torch>=2.0.0",
+    "pytorch-minimize>=0.0.2",
 ]
 dynamic = ["version"]
 
