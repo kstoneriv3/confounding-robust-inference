@@ -175,6 +175,9 @@ def normalize_p_t(p_t: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     p_t_new = torch.zeros_like(p_t)
     for t in set(T):
         p_t_new[T == t] = p_t[T == t] * torch.mean((T == t) / p_t)
+    assert torch.all(
+        p_t_new <= 1
+    ), f"{p_t[p_t_new > 1]=} is larger than 1.0 where {T[p_t_new > 1]=}."
     return p_t_new
 
 
@@ -189,6 +192,7 @@ def get_a_b(p_t: np.ndarray, Gamma: float, const_type: str) -> tuple[np.ndarray,
         b = Gamma * (1 / p_t)
     else:
         raise ValueError('A valid const_type is either "tan_box" or "lr_box"')
+    assert np.all(a <= b), f"{a[a > b]=} is larger than {b[a > b]=} for {p_t[a > b]=}."
     return a, b
 
 

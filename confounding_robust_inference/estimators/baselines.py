@@ -112,8 +112,6 @@ class ZSBEstimator(BaseEstimator):
         n = T.shape[0]
 
         # Necessary for ensuring the feasibility for small Gamma under box and Hajek constraints.
-        if not self.use_fractional_programming:
-            p_t = normalize_p_t(p_t, T)
         pi = policy.prob(T, X)
         r = Y * pi
         r_np, Y_np, T_np, p_t_np = as_ndarrays(r, Y, T, p_t)
@@ -127,7 +125,9 @@ class ZSBEstimator(BaseEstimator):
             objective = cp.Minimize(cp.sum(r_np * w))
 
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
-            constraints.extend(get_hajek_constraints(w, T_np, p_t_np))
+            constraints.extend(
+                get_hajek_constraints(w, T_np, p_t_np, self.use_fractional_programming)
+            )
             if self.use_fractional_programming:
                 constraints.extend(
                     get_zsb_box_constraints(w, T_np, p_t_np, self.Gamma, self.const_type)

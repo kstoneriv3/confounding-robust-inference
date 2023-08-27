@@ -265,7 +265,7 @@ class KCMCEstimator(BaseKCMCEstimator):
         Args:
             alpha: Significance level of used for the confidence interval.
             consider_second_order: If True, consider the second order asymptotics similarly to GIC.
-        """# <- but ignore the variance of the second order term, which is O(d^2/n^2).
+        """  # <- but ignore the variance of the second order term, which is O(d^2/n^2).
         #     When second order asymptotics is considered, Monte Carlo sampling is used for
         #     calculating the percentile of the asymptotic distribution.
         # n_mc: The number of Monte Carlo samples used to calculate the percentile of the

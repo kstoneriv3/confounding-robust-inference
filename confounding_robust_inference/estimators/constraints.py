@@ -10,11 +10,16 @@ from confounding_robust_inference.utils.quantile_regression import TorchQuantile
 from confounding_robust_inference.utils.types import as_ndarrays, as_tensors
 
 
-def get_hajek_constraints(w: cp.Variable, T: np.ndarray, p_t: np.ndarray) -> List[cp.Constraint]:
+def get_hajek_constraints(
+    w: cp.Variable, T: np.ndarray, p_t: np.ndarray, use_fractional_programming: bool = True
+) -> List[cp.Constraint]:
     n = T.shape[0]
     constraints = []
     for t in set(T):
-        constraints.append(cp.sum(w[T == t]) == n)
+        if use_fractional_programming:
+            constraints.append(cp.sum(w[T == t]) == n)
+        else:
+            constraints.append(cp.sum(w[T == t]) == np.sum((T == t) / p_t))
     return constraints
 
 
