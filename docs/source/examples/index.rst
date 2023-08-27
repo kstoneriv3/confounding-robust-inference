@@ -6,6 +6,7 @@ Examples
 
    basic
    continuous_treatment
+   nls_data
    bound_tightness
    mixed_policy_learning
    differentiable_policy_learning

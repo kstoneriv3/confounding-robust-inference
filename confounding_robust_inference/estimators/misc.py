@@ -39,7 +39,9 @@ CVXPY_F_DIV_FUNCTIONS: dict[str, Callable[[cp.Expression], cp.Expression]] = {
     "KL": lambda u: -cp.entr(u),
     "inverse_KL": lambda u: -cp.log(u),
     "Jensen_Shannon": lambda u: (
-        -0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.0) + 0.5 * u * cp.log(u)
+        # Both are not DCP according to cvxpy...
+        # -0.5 * (u + 1) * cp.log(u + 1) + 0.5 * (u + 1) * np.log(2.0) + 0.5 * u * cp.log(u)
+        # -0.5 * u * cp.log(0.5 * (cp.inv_pos(u) + 1)) - 0.5 * u * cp.log(0.5 * (u + 1))
     ),
     "squared_Hellinger": lambda u: u - 2 * cp.sqrt(u) + 1,
     "Pearson_chi_squared": lambda u: cp.square(u - 1),
