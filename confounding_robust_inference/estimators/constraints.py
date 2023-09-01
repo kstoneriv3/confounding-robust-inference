@@ -3,7 +3,6 @@ from typing import List
 import cvxpy as cp
 import numpy as np
 from scipy.stats import chi2
-from sklearn.gaussian_process.kernels import Kernel
 
 from confounding_robust_inference.estimators.misc import CVXPY_F_DIV_FUNCTIONS, get_a_b
 from confounding_robust_inference.utils.quantile_regression import TorchQuantileRegressor
@@ -53,20 +52,28 @@ def get_box_constraints(
 def get_qb_constraint(
     w: cp.Variable,
     Y: np.ndarray,
-    Psi: np.ndarray,
+    Psi: np.ndarray,  # equally choosen as the KCMC (rescale_by_policy_prob=True)
     p_t: np.ndarray,
     pi: np.ndarray,
     Gamma: float,
-    D: int,
-    kernel: Kernel,
 ) -> List[cp.Constraint]:
     tau = 1 / (Gamma + 1)
+    Psi = p_t[:, None] / pi[:, None] * Psi
     tY, tPsi = as_tensors(Y, Psi)
     # sklearn's QuantileRegressor is slow for large data set.
     tQ = TorchQuantileRegressor(quantile=tau).fit(tPsi, tY).predict(tPsi)
     (Q,) = as_ndarrays(tQ)
+    Q /= (np.sum(pi * Q / p_t) + 1e-8)  # For numerical stability
     # Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
     return [cp.scalar_product(pi * Q, w) == np.sum(pi * Q / p_t)]
+    """To solve the same problem as KCMC instead:
+    tY, tPsi, tp_t, tpi = as_tensors(Y, Psi, p_t, pi)
+    # sklearn's QuantileRegressor is slow for large data set.
+    tQ = TorchQuantileRegressor(quantile=tau).fit(tPsi, tpi / tp_t * tY).predict(tPsi)
+    (Q,) = as_ndarrays(tQ)
+    # Carveat: np.ones(n) * w is NOT the element-wise product in cvxpy!!!
+    return [cp.scalar_product(p_t * Q, w) == np.sum(p_t * Q / p_t)]
+    """
 
 
 def get_kernel_constraints(

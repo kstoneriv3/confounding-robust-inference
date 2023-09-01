@@ -13,6 +13,7 @@ from confounding_robust_inference.estimators.constraints import (
     get_qb_constraint,
     get_zsb_box_constraints,
 )
+from confounding_robust_inference.estimators.kcmc import apply_black_magic
 from confounding_robust_inference.estimators.misc import (
     DEFAULT_KERNEL,
     OrthogonalBasis,
@@ -204,6 +205,8 @@ class QBEstimator(BaseEstimator):
 
         self.kernel = self.kernel if self.kernel is not None else DEFAULT_KERNEL
         self.Psi_np = OrthogonalBasis(self.D, self.kernel).fit_transform(TX_np)
+        self.Psi_np = apply_black_magic(self.Psi_np, p_t_np, pi_np)
+        Psi_np_scale = np.linalg.norm(self.Psi_np, axis=0)
 
         # For avoiding user warning about multiplication operator with `*` and `@`
         with warnings.catch_warnings():
@@ -216,9 +219,7 @@ class QBEstimator(BaseEstimator):
             constraints: List[cp.constraints.Constraint] = [np.zeros(n) <= w]
             constraints.extend(get_box_constraints(w, p_t_np, self.Gamma, self.const_type))
             constraints.extend(
-                get_qb_constraint(
-                    w, Y_np, self.Psi_np, p_t_np, pi_np, self.Gamma, self.D, self.kernel
-                )
+                get_qb_constraint(w, Y_np, self.Psi_np / Psi_np_scale, p_t_np, pi_np, self.Gamma)
             )
 
             problem = cp.Problem(objective, constraints)
