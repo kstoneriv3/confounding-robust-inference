@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic Example &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Continuous treatment (i.e. continuous action space)" href="continuous_treatment.html" />
+    <link rel="prev" title="Examples" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Basic Example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Non-robust-policy-value">Non-robust policy value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Robust-policy-value">Robust policy value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Visualize-the-bounds-by-KCMC,-ZSB,-and-QB-estimators">Visualize the bounds by KCMC, ZSB, and QB estimators</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="continuous_treatment.html">Continuous treatment (i.e. continuous action space)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nls_data.html">National longitudal survery (NLS) dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bound_tightness.html">Comparison of the tightness of the lower/upper-bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mixed_policy_learning.html">Learning mixed policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="differentiable_policy_learning.html">Learning differentiable policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_selection.html">Selection of the rank of kernel conditional moment constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hypothesis_testing.html">Hypothesis Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="list_estimators.html">List of estimators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="list_constraints.html">List of constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ate.html">Average treatment effect (ATE)</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference/index.html">API Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">Basic Example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/basic.nblink.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Basic-Example">
+<h1>Basic Example<a class="headerlink" href="#Basic-Example" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">confounding_robust_inference</span> <span class="k">as</span> <span class="nn">cri</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.estimators.misc</span> <span class="kn">import</span> <span class="n">normalize_p_t</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">&quot;seaborn-whitegrid&quot;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">matplotlib.cm</span> <span class="kn">import</span> <span class="n">tab10</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/tmp/ipykernel_1106158/711566762.py:3: MatplotlibDeprecationWarning: The seaborn styles shipped by Matplotlib are deprecated since 3.6, as they no longer correspond to the styles shipped by seaborn. However, they will remain available as &#39;seaborn-v0_8-&lt;style&gt;&#39;. Alternatively, directly use the seaborn API instead.
+  plt.style.use(&#34;seaborn-whitegrid&#34;)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># setup toy policy and data</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">TORCH_DTYPE</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">get_default_torch_dtype</span><span class="p">()</span>
+<span class="n">beta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">TORCH_DTYPE</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">policies</span><span class="o">.</span><span class="n">LogisticPolicy</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">SyntheticDataBinary</span><span class="p">()</span>
+<span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Non-robust-policy-value">
+<h2>Non-robust policy value<a class="headerlink" href="#Non-robust-policy-value" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Non-robust estimator of the policy value:</span>
+<span class="n">estimator</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">IPWEstimator</span><span class="p">()</span>
+<span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span>
+<span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+tensor(3.8496, dtype=torch.float64)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># We can also compute the theoretical non-robust policy value by Monte Carlo sampling with the true data distribution:</span>
+<span class="n">data</span><span class="o">.</span><span class="n">evaluate_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">n_mc</span><span class="o">=</span><span class="mi">100000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+tensor(3.6557, dtype=torch.float64)
+</pre></div></div>
+</div>
+</section>
+<section id="Robust-policy-value">
+<h2>Robust policy value<a class="headerlink" href="#Robust-policy-value" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Robust estimator of the policy value:</span>
+<span class="n">estimator</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">KCMCEstimator</span><span class="p">(</span>
+    <span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">rescale_by_policy_prob</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+<span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span>
+<span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+tensor(3.6562, dtype=torch.float64)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># We can also compute the theoretical robust policy value by Monte Carlo sampling with the true data distribution:</span>
+<span class="n">data</span><span class="o">.</span><span class="n">evaluate_policy_lower_bound</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">n_mc</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+tensor(3.3339, dtype=torch.float64)
+</pre></div></div>
+</div>
+</section>
+<section id="Visualize-the-bounds-by-KCMC,-ZSB,-and-QB-estimators">
+<h2>Visualize the bounds by KCMC, ZSB, and QB estimators<a class="headerlink" href="#Visualize-the-bounds-by-KCMC,-ZSB,-and-QB-estimators" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Gammas</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="o">+</span> <span class="n">i</span> <span class="o">/</span> <span class="mi">10</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">11</span><span class="p">)]</span>
+
+
+<span class="k">def</span> <span class="nf">get_bound</span><span class="p">(</span><span class="n">estimator_type</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">):</span>
+    <span class="n">estimator</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;KCMC&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">KCMCEstimator</span><span class="p">(</span>
+            <span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">rescale_by_policy_prob</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;ZSB&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">ZSBEstimator</span><span class="p">(</span>
+            <span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">use_fractional_programming</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;QB&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">QBEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+    <span class="p">}[</span><span class="n">estimator_type</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;lower&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;upper&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">-</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span>
+
+
+<span class="n">lower_bounds_kcmc</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;KCMC&quot;</span><span class="p">,</span> <span class="s2">&quot;lower&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+<span class="n">upper_bounds_kcmc</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;KCMC&quot;</span><span class="p">,</span> <span class="s2">&quot;upper&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+
+<span class="n">lower_bounds_zsb</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;ZSB&quot;</span><span class="p">,</span> <span class="s2">&quot;lower&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+<span class="n">upper_bounds_zsb</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;ZSB&quot;</span><span class="p">,</span> <span class="s2">&quot;upper&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+
+<span class="n">lower_bounds_qb</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;QB&quot;</span><span class="p">,</span> <span class="s2">&quot;lower&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+<span class="n">upper_bounds_qb</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_bound</span><span class="p">(</span><span class="s2">&quot;QB&quot;</span><span class="p">,</span> <span class="s2">&quot;upper&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">lower_line_kcmc</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">lower_bounds_kcmc</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">upper_line_kcmc</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">upper_bounds_kcmc</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">lower_line_zsb</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">lower_bounds_zsb</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">upper_line_zsb</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">upper_bounds_zsb</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">lower_line_qb</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">lower_bounds_qb</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">2</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">upper_line_qb</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">upper_bounds_qb</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">2</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="p">(</span><span class="n">lower_line_kcmc</span><span class="p">,</span> <span class="n">upper_line_kcmc</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">lower_line_zsb</span><span class="p">,</span> <span class="n">upper_line_zsb</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">lower_line_qb</span><span class="p">,</span> <span class="n">upper_line_qb</span><span class="p">),</span>
+    <span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;KCMC estimator ($D=20$)&quot;</span><span class="p">,</span> <span class="s2">&quot;ZSB estimator&quot;</span><span class="p">,</span> <span class="s2">&quot;quantile balancing estimator ($D=20$)&quot;</span><span class="p">],</span>
+    <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper left&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Sensitivity parameter $\Gamma$&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Policy value&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;fig/basic_kcmc_vs_zsb_vs_qb.pdf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_basic_12_0.png" src="../_images/examples_basic_12_0.png" />
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="continuous_treatment.html" class="btn btn-neutral float-right" title="Continuous treatment (i.e. continuous action space)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>List of estimators &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="List of constraints" href="list_constraints.html" />
+    <link rel="prev" title="Hypothesis Testing" href="hypothesis_testing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="basic.html">Basic Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="continuous_treatment.html">Continuous treatment (i.e. continuous action space)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nls_data.html">National longitudal survery (NLS) dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bound_tightness.html">Comparison of the tightness of the lower/upper-bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mixed_policy_learning.html">Learning mixed policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="differentiable_policy_learning.html">Learning differentiable policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_selection.html">Selection of the rank of kernel conditional moment constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hypothesis_testing.html">Hypothesis Testing</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">List of estimators</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#IPW-estimator">IPW estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Hajek-estimator">Hajek estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ZSB-estimator">ZSB estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#KCMC-estimator">KCMC estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#KCMC-estimator-with-SGD">KCMC estimator with SGD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Neural-CMC-estimator">Neural CMC estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Gaussian-process-KCMC-estimator">Gaussian process KCMC estimator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Quantile-Balancing-Estimator">Quantile Balancing Estimator</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="list_constraints.html">List of constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ate.html">Average treatment effect (ATE)</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference/index.html">API Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">List of estimators</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/list_estimators.nblink.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="List-of-estimators">
+<h1>List of estimators<a class="headerlink" href="#List-of-estimators" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">confounding_robust_inference</span> <span class="k">as</span> <span class="nn">cri</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">&quot;seaborn-whitegrid&quot;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">matplotlib.cm</span> <span class="kn">import</span> <span class="n">tab10</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/tmp/ipykernel_2862243/711566762.py:3: MatplotlibDeprecationWarning: The seaborn styles shipped by Matplotlib are deprecated since 3.6, as they no longer correspond to the styles shipped by seaborn. However, they will remain available as &#39;seaborn-v0_8-&lt;style&gt;&#39;. Alternatively, directly use the seaborn API instead.
+  plt.style.use(&#34;seaborn-whitegrid&#34;)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># setup toy policy and data</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">TORCH_DTYPE</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">get_default_torch_dtype</span><span class="p">()</span>
+<span class="n">beta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">TORCH_DTYPE</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">policies</span><span class="o">.</span><span class="n">LogisticPolicy</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">SyntheticDataBinary</span><span class="p">()</span>
+<span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">4000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ipw</span> <span class="o">=</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">IPWEstimator</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+<span class="n">true_ipw</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">evaluate_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
+<span class="n">true_lower_bound</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">evaluate_policy_lower_bound</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+<span class="n">bias</span> <span class="o">=</span> <span class="n">ipw</span> <span class="o">-</span> <span class="n">true_ipw</span>
+
+
+<span class="k">def</span> <span class="nf">remove_finite_sample_bias</span><span class="p">(</span><span class="n">ests</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span> <span class="o">-</span> <span class="n">bias</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ests</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">estimator_factory</span><span class="p">(</span><span class="n">estimator_name</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;Hajek&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">HajekEstimator</span><span class="p">(),</span>
+        <span class="s2">&quot;IPW&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">IPWEstimator</span><span class="p">(),</span>
+        <span class="s2">&quot;ZSB&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">ZSBEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">),</span>
+        <span class="s2">&quot;KCMC&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">KCMCEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+        <span class="s2">&quot;GP-KCMC&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">GPKCMCEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+        <span class="s2">&quot;KCMC-SGD&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">DualKCMCEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+        <span class="s2">&quot;NCMC-SGD&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">DualNCMCEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">),</span>
+        <span class="s2">&quot;QB&quot;</span><span class="p">:</span> <span class="n">cri</span><span class="o">.</span><span class="n">estimators</span><span class="o">.</span><span class="n">QBEstimator</span><span class="p">(</span><span class="n">const_type</span><span class="o">=</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="n">Gamma</span><span class="o">=</span><span class="n">Gamma</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+    <span class="p">}[</span><span class="n">estimator_name</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">plot_bound_tightness</span><span class="p">(</span><span class="n">estimator_name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_lower_bound</span><span class="p">(</span><span class="n">Gamma</span><span class="p">):</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">estimator_factory</span><span class="p">(</span><span class="n">estimator_name</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span>
+        <span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_upper_bound</span><span class="p">(</span><span class="n">Gamma</span><span class="p">):</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">estimator_factory</span><span class="p">(</span><span class="n">estimator_name</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">)</span>
+        <span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">-</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+
+    <span class="n">Gammas</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="o">+</span> <span class="n">i</span> <span class="o">/</span> <span class="mi">10</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">11</span><span class="p">)]</span>
+    <span class="n">lower_bounds</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_lower_bound</span><span class="p">(</span><span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+    <span class="n">upper_bounds</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_upper_bound</span><span class="p">(</span><span class="n">Gamma</span><span class="p">)</span> <span class="k">for</span> <span class="n">Gamma</span> <span class="ow">in</span> <span class="n">Gammas</span><span class="p">]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">lower_bounds</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">Gammas</span><span class="p">,</span> <span class="n">upper_bounds</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">tab10</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Sensitivity parameter $\Gamma$&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Policy value&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fig/list_estimators_</span><span class="si">{</span><span class="n">estimator_name</span><span class="si">}</span><span class="s2">.pdf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="IPW-estimator">
+<h2>IPW estimator<a class="headerlink" href="#IPW-estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;IPW&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_8_0.png" src="../_images/examples_list_estimators_8_0.png" />
+</div>
+</div>
+</section>
+<section id="Hajek-estimator">
+<h2>Hajek estimator<a class="headerlink" href="#Hajek-estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;Hajek&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_10_0.png" src="../_images/examples_list_estimators_10_0.png" />
+</div>
+</div>
+</section>
+<section id="ZSB-estimator">
+<h2>ZSB estimator<a class="headerlink" href="#ZSB-estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;ZSB&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_12_0.png" src="../_images/examples_list_estimators_12_0.png" />
+</div>
+</div>
+</section>
+<section id="KCMC-estimator">
+<h2>KCMC estimator<a class="headerlink" href="#KCMC-estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;KCMC&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_14_0.png" src="../_images/examples_list_estimators_14_0.png" />
+</div>
+</div>
+</section>
+<section id="KCMC-estimator-with-SGD">
+<h2>KCMC estimator with SGD<a class="headerlink" href="#KCMC-estimator-with-SGD" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The dual problem is solved by stochastic gradient descent</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;KCMC-SGD&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_16_0.png" src="../_images/examples_list_estimators_16_0.png" />
+</div>
+</div>
+</section>
+<section id="Neural-CMC-estimator">
+<h2>Neural CMC estimator<a class="headerlink" href="#Neural-CMC-estimator" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The dual problem has the functional multiplier parametrized by neural network</p></li>
+<li><p>Solved by stochastic gradient descent</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;NCMC-SGD&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_18_0.png" src="../_images/examples_list_estimators_18_0.png" />
+</div>
+</div>
+</section>
+<section id="Gaussian-process-KCMC-estimator">
+<h2>Gaussian process KCMC estimator<a class="headerlink" href="#Gaussian-process-KCMC-estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;GP-KCMC&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_20_0.png" src="../_images/examples_list_estimators_20_0.png" />
+</div>
+</div>
+</section>
+<section id="Quantile-Balancing-Estimator">
+<h2>Quantile Balancing Estimator<a class="headerlink" href="#Quantile-Balancing-Estimator" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_bound_tightness</span><span class="p">(</span><span class="s2">&quot;QB&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/examples_list_estimators_22_0.png" src="../_images/examples_list_estimators_22_0.png" />
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hypothesis_testing.html" class="btn btn-neutral float-left" title="Hypothesis Testing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="list_constraints.html" class="btn btn-neutral float-right" title="List of constraints" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

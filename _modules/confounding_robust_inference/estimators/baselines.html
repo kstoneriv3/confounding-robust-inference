@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>confounding_robust_inference.estimators.baselines &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/index.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference/index.html">API Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">confounding_robust_inference.estimators.baselines</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for confounding_robust_inference.estimators.baselines</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span>
+
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">sklearn.gaussian_process.kernels</span> <span class="kn">import</span> <span class="n">Kernel</span>
+
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.estimators.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.estimators.constraints</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_box_constraints</span><span class="p">,</span>
+    <span class="n">get_hajek_constraints</span><span class="p">,</span>
+    <span class="n">get_qb_constraint</span><span class="p">,</span>
+    <span class="n">get_zsb_box_constraints</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.estimators.kcmc</span> <span class="kn">import</span> <span class="n">apply_black_magic</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.estimators.misc</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_KERNEL</span><span class="p">,</span>
+    <span class="n">OrthogonalBasis</span><span class="p">,</span>
+    <span class="n">assert_input</span><span class="p">,</span>
+    <span class="n">normalize_p_t</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.policies</span> <span class="kn">import</span> <span class="n">BasePolicy</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.utils.types</span> <span class="kn">import</span> <span class="n">as_ndarrays</span><span class="p">,</span> <span class="n">as_tensor</span>
+
+<span class="c1"># one of default, ignore, error, always, module, once</span>
+<span class="n">WARNINGS_MODE</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;always&quot;</span><span class="p">,</span> <span class="s2">&quot;module&quot;</span><span class="p">,</span> <span class="s2">&quot;once&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ignore&quot;</span>
+
+
+<div class="viewcode-block" id="IPWEstimator">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.IPWEstimator">[docs]</a>
+<span class="k">class</span> <span class="nc">IPWEstimator</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Inverse Probability Weightning (IPW) estimator.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="IPWEstimator.fit">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.IPWEstimator.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">p_t</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseEstimator</span><span class="p">:</span>
+        <span class="n">assert_input</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">=</span> <span class="n">Y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_t</span> <span class="o">=</span> <span class="n">p_t</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="IPWEstimator.predict">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.IPWEstimator.predict">[docs]</a>
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">p_t</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HajekEstimator">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.HajekEstimator">[docs]</a>
+<span class="k">class</span> <span class="nc">HajekEstimator</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Hajek estimator.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="HajekEstimator.fit">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.HajekEstimator.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">p_t</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseEstimator</span><span class="p">:</span>
+        <span class="n">assert_input</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">=</span> <span class="n">Y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_t</span> <span class="o">=</span> <span class="n">p_t</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HajekEstimator.predict">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.HajekEstimator.predict">[docs]</a>
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">p_t</span> <span class="o">=</span> <span class="n">normalize_p_t</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p_t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">)</span> <span class="o">/</span> <span class="n">p_t</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ZSBEstimator">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.ZSBEstimator">[docs]</a>
+<span class="k">class</span> <span class="nc">ZSBEstimator</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ZSB estimator from Zhao, Small, and Bhattacharya (2019) and MSM from Tan (2006).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Gamma: Sensitivity parameter satisfying Gamma &gt;= 1.0. When Gamma == 1.0, ZSB estimator is</span>
+<span class="sd">            equivalent to the Hajek estimator.</span>
+<span class="sd">        use_fractional_programming: If True, linear fractional programming is used as in</span>
+<span class="sd">            Zhao, Small, and Bhattacharya (2019). If False, it does not use linear fractional</span>
+<span class="sd">            programming for lower bound calculation and instead normalize nominal propensity p_t</span>
+<span class="sd">            and uses takes more primitive approach used by the Marginal Sensitivity Model (MSM)</span>
+<span class="sd">            by Tan (2006).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">const_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">use_fractional_programming</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">Gamma</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+        <span class="k">assert</span> <span class="n">const_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="s2">&quot;lr_box&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span> <span class="o">=</span> <span class="n">Gamma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">const_type</span> <span class="o">=</span> <span class="n">const_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_fractional_programming</span> <span class="o">=</span> <span class="n">use_fractional_programming</span>
+
+<div class="viewcode-block" id="ZSBEstimator.fit">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.ZSBEstimator.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">p_t</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseEstimator</span><span class="p">:</span>
+        <span class="n">assert_input</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">=</span> <span class="n">Y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_t</span> <span class="o">=</span> <span class="n">p_t</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Necessary for ensuring the feasibility for small Gamma under box and Hajek constraints.</span>
+        <span class="n">pi</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">Y</span> <span class="o">*</span> <span class="n">pi</span>
+        <span class="n">r_np</span><span class="p">,</span> <span class="n">Y_np</span><span class="p">,</span> <span class="n">T_np</span><span class="p">,</span> <span class="n">p_t_np</span> <span class="o">=</span> <span class="n">as_ndarrays</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">p_t</span><span class="p">)</span>
+
+        <span class="c1"># For avoiding user warning about multiplication operator with `*` and `@`</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="n">WARNINGS_MODE</span><span class="p">)</span>
+
+            <span class="n">w</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+            <span class="n">objective</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">r_np</span> <span class="o">*</span> <span class="n">w</span><span class="p">))</span>
+
+            <span class="n">constraints</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">cp</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">Constraint</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">w</span><span class="p">]</span>
+            <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">get_hajek_constraints</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">T_np</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_fractional_programming</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_fractional_programming</span><span class="p">:</span>
+                <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="n">get_zsb_box_constraints</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">T_np</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">const_type</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_box_constraints</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">const_type</span><span class="p">))</span>
+
+            <span class="n">problem</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">constraints</span><span class="p">)</span>
+            <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;optimal&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The optimizer found the associated convex programming to be </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">problem</span><span class="o">.</span><span class="n">status</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitted_lower_bound</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">problem</span> <span class="o">=</span> <span class="n">problem</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="ZSBEstimator.predict">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.ZSBEstimator.predict">[docs]</a>
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitted_lower_bound</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="QBEstimator">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.QBEstimator">[docs]</a>
+<span class="k">class</span> <span class="nc">QBEstimator</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Quantile balancing (QB) estimator by Dorn and Guo (2022).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Gamma: Sensitivity parameter satisfying Gamma &gt;= 1.0. When Gamma == 1.0, QB estimator is</span>
+<span class="sd">            equivalent to the IPW estimator.</span>
+<span class="sd">        D: Dimension of the low-rank approximation used in the kernel quantile regression.</span>
+<span class="sd">        kernel: Kernel used in the low-rank kernel quantile regression.</span>
+<span class="sd">        const_type: Type of box constraints. A valid argument is either &quot;Tan_box&quot; (Tan&#39;s MSN) or</span>
+<span class="sd">            &quot;lr_box&quot; (likelihood ratio).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">const_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">Gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">D</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+        <span class="n">kernel</span><span class="p">:</span> <span class="n">Kernel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">const_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Tan_box&quot;</span><span class="p">,</span> <span class="s2">&quot;lr_box&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">Gamma</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">const_type</span> <span class="o">=</span> <span class="n">const_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span> <span class="o">=</span> <span class="n">Gamma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span>
+
+<div class="viewcode-block" id="QBEstimator.fit">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.QBEstimator.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">p_t</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseEstimator</span><span class="p">:</span>
+        <span class="n">assert_input</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Y</span> <span class="o">=</span> <span class="n">Y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_t</span> <span class="o">=</span> <span class="n">p_t</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">pi</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">Y</span> <span class="o">*</span> <span class="n">pi</span>
+        <span class="n">r_np</span><span class="p">,</span> <span class="n">Y_np</span><span class="p">,</span> <span class="n">T_np</span><span class="p">,</span> <span class="n">X_np</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="n">pi_np</span> <span class="o">=</span> <span class="n">as_ndarrays</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">p_t</span><span class="p">,</span> <span class="n">pi</span><span class="p">)</span>
+        <span class="n">TX_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">T_np</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">X_np</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">DEFAULT_KERNEL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Psi_np</span> <span class="o">=</span> <span class="n">OrthogonalBasis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">TX_np</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Psi_np</span> <span class="o">=</span> <span class="n">apply_black_magic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Psi_np</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="n">pi_np</span><span class="p">)</span>
+        <span class="n">Psi_np_scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Psi_np</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># For avoiding user warning about multiplication operator with `*` and `@`</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="n">WARNINGS_MODE</span><span class="p">)</span>
+
+            <span class="n">w</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+            <span class="n">objective</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">r_np</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">w</span><span class="p">)</span>
+
+            <span class="n">constraints</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">cp</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">Constraint</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">w</span><span class="p">]</span>
+            <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_box_constraints</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">const_type</span><span class="p">))</span>
+            <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">get_qb_constraint</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">Y_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Psi_np</span> <span class="o">/</span> <span class="n">Psi_np_scale</span><span class="p">,</span> <span class="n">p_t_np</span><span class="p">,</span> <span class="n">pi_np</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Gamma</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="n">problem</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">constraints</span><span class="p">)</span>
+            <span class="n">problem</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">problem</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;optimal&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The optimizer found the associated convex programming to be </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">problem</span><span class="o">.</span><span class="n">status</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">p_t</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitted_lower_bound</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">problem</span> <span class="o">=</span> <span class="n">problem</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="QBEstimator.predict">
+<a class="viewcode-back" href="../../../api_reference/estimators.html#confounding_robust_inference.estimators.QBEstimator.predict">[docs]</a>
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitted_lower_bound</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

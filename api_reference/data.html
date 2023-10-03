@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>confounding_robust_inference.data &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="confounding_robust_inference.estimators" href="estimators.html" />
+    <link rel="prev" title="API Reference" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Examples</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">confounding_robust_inference.data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.BaseData"><code class="docutils literal notranslate"><span class="pre">BaseData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.BaseData.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">BaseData.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.BaseData.sample"><code class="docutils literal notranslate"><span class="pre">BaseData.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound"><code class="docutils literal notranslate"><span class="pre">BaseDataWithLowerBound</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound"><code class="docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy_lower_bound()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.sample"><code class="docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple"><code class="docutils literal notranslate"><span class="pre">DataTuple</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.T"><code class="docutils literal notranslate"><span class="pre">DataTuple.T</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.U"><code class="docutils literal notranslate"><span class="pre">DataTuple.U</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.X"><code class="docutils literal notranslate"><span class="pre">DataTuple.X</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.Y"><code class="docutils literal notranslate"><span class="pre">DataTuple.Y</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.count"><code class="docutils literal notranslate"><span class="pre">DataTuple.count()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.index"><code class="docutils literal notranslate"><span class="pre">DataTuple.index()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.p_t_x"><code class="docutils literal notranslate"><span class="pre">DataTuple.p_t_x</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.DataTuple.p_t_xu"><code class="docutils literal notranslate"><span class="pre">DataTuple.p_t_xu</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.NLSDataDornGuo2022"><code class="docutils literal notranslate"><span class="pre">NLSDataDornGuo2022</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.NLSDataDornGuo2022.sample"><code class="docutils literal notranslate"><span class="pre">NLSDataDornGuo2022.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataBinary"><code class="docutils literal notranslate"><span class="pre">SyntheticDataBinary</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">SyntheticDataBinary.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy_lower_bound"><code class="docutils literal notranslate"><span class="pre">SyntheticDataBinary.evaluate_policy_lower_bound()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataBinary.sample"><code class="docutils literal notranslate"><span class="pre">SyntheticDataBinary.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataContinuous"><code class="docutils literal notranslate"><span class="pre">SyntheticDataContinuous</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">SyntheticDataContinuous.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy_lower_bound"><code class="docutils literal notranslate"><span class="pre">SyntheticDataContinuous.evaluate_policy_lower_bound()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataContinuous.sample"><code class="docutils literal notranslate"><span class="pre">SyntheticDataContinuous.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018.sample"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018.sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018Continuous</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.evaluate_policy"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018Continuous.evaluate_policy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.sample"><code class="docutils literal notranslate"><span class="pre">SyntheticDataKallusZhou2018Continuous.sample()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="estimators.html">confounding_robust_inference.estimators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="policies.html">confounding_robust_inference.policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">confounding_robust_inference.utils</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">confounding_robust_inference.data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api_reference/data.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-confounding_robust_inference.data">
+<span id="confounding-robust-inference-data"></span><h1>confounding_robust_inference.data<a class="headerlink" href="#module-confounding_robust_inference.data" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#BaseData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.BaseData" title="Link to this definition"></a></dt>
+<dd><p>Base class for data used in the numerical experiments.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseData.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#BaseData.evaluate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.BaseData.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>Unbiased Monte Carlo estimator of policy value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – Policy to be evaluated.</p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – The number of Monte Carlo samples.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Policy value estimator, which is a torch tensor differentiable w.r.t. policy.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseData.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#BaseData.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.BaseData.sample" title="Link to this definition"></a></dt>
+<dd><p>Generate data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – Size of data</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Namedtuple that contains the generated data, whose attributes are
+Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseDataWithLowerBound">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseDataWithLowerBound</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#BaseDataWithLowerBound"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.BaseDataWithLowerBound" title="Link to this definition"></a></dt>
+<dd><p>Base class for data with known ground truth lower bound.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>Unbiased Monte Carlo estimator of policy value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – Policy to be evaluated.</p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – The number of Monte Carlo samples.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Policy value estimator, which is a torch tensor differentiable w.r.t. policy.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound">
+<span class="sig-name descname"><span class="pre">evaluate_policy_lower_bound</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#BaseDataWithLowerBound.evaluate_policy_lower_bound"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound" title="Link to this definition"></a></dt>
+<dd><p>Ground truth lower bound under box constraints.</p>
+<p>Unbiased Monte Carlo estimation is used to estimate the lower bound.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Gamma</strong> (<em>float</em>) – Parameteer of box constraints.</p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – Policy to be evaluated.</p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – The number of Monte Carlo samples.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Lower bound estimate, which is a torch tensor differentiable w.r.t. policy.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.BaseDataWithLowerBound.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.data.BaseDataWithLowerBound.sample" title="Link to this definition"></a></dt>
+<dd><p>Generate data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – Size of data</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Namedtuple that contains the generated data, whose attributes are
+Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataTuple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">U</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t_xu</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#DataTuple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.DataTuple" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>U</strong> (<em>Tensor</em><em> | </em><em>None</em>) – </p></li>
+<li><p><strong>p_t_x</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t_xu</strong> (<em>Tensor</em><em> | </em><em>None</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.T">
+<span class="sig-name descname"><span class="pre">T</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.T" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.U">
+<span class="sig-name descname"><span class="pre">U</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.U" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.X">
+<span class="sig-name descname"><span class="pre">X</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.X" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.Y">
+<span class="sig-name descname"><span class="pre">Y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.Y" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.count">
+<span class="sig-name descname"><span class="pre">count</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.count" title="Link to this definition"></a></dt>
+<dd><p>Return number of occurrences of value.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.index">
+<span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9223372036854775807</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.index" title="Link to this definition"></a></dt>
+<dd><p>Return first index of value.</p>
+<p>Raises ValueError if the value is not present.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.p_t_x">
+<span class="sig-name descname"><span class="pre">p_t_x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.p_t_x" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 4</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.DataTuple.p_t_xu">
+<span class="sig-name descname"><span class="pre">p_t_xu</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#confounding_robust_inference.data.DataTuple.p_t_xu" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 5</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.NLSDataDornGuo2022">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">NLSDataDornGuo2022</span></span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#NLSDataDornGuo2022"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.NLSDataDornGuo2022" title="Link to this definition"></a></dt>
+<dd><p>NLS data from Dorn and Guo (2022).</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.NLSDataDornGuo2022.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">667</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#NLSDataDornGuo2022.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.NLSDataDornGuo2022.sample" title="Link to this definition"></a></dt>
+<dd><p>Load the NLS data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – Size of data. Users are not supposed to provide n, but it is there to indicate
+the sample size of this dataset is 667.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Namedtuple that contains the generated data, whose attributes are
+Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataBinary">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyntheticDataBinary</span></span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataBinary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataBinary" title="Link to this definition"></a></dt>
+<dd><p>Synthetic data with witn binary action space and a known lower bound.</p>
+<p>This is synthetic data with binary action space, similar to Kallus and Zhou (2018).
+For this data, we know that analytic expression of the lower bound of Tan’s marginal sensitivity
+model. Thus, this synthetic data can be is used to test the consistency and asypmtotic property
+of estimators.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataBinary.evaluate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy" title="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy_lower_bound">
+<span class="sig-name descname"><span class="pre">evaluate_policy_lower_bound</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataBinary.evaluate_policy_lower_bound"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy_lower_bound" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound" title="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy_lower_bound()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>Gamma</strong> (<em>float</em>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataBinary.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataBinary.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataBinary.sample" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.sample" title="confounding_robust_inference.data.BaseDataWithLowerBound.sample"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.sample()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataContinuous">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyntheticDataContinuous</span></span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataContinuous"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataContinuous" title="Link to this definition"></a></dt>
+<dd><p>Synthetic data with with continuous action space and a known lower bound.</p>
+<p>This is synthetic data with continuous action space, similar to Kallus and Zhou (2018).
+For this data, we know that analytic expression of the lower bound of likelihood ratio
+sensitivity model. Thus, this synthetic data can be is used to test the consistency and
+asypmtotic property of estimators.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataContinuous.evaluate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy" title="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy_lower_bound">
+<span class="sig-name descname"><span class="pre">evaluate_policy_lower_bound</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataContinuous.evaluate_policy_lower_bound"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy_lower_bound" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound" title="confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.evaluate_policy_lower_bound()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>Gamma</strong> (<em>float</em>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataContinuous.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataContinuous.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataContinuous.sample" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseDataWithLowerBound.sample" title="confounding_robust_inference.data.BaseDataWithLowerBound.sample"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseDataWithLowerBound.sample()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyntheticDataKallusZhou2018</span></span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018" title="Link to this definition"></a></dt>
+<dd><p>Synthetic data from Kallus and Zhou (2018).</p>
+<p>For this synthetic data, we know that the Tan’s box constraints with p_obs(t|x) = p_t_x and
+Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic
+data can be is used to test if the true policy value is actually included when a valid
+uncertainty set is given.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018.evaluate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseData.evaluate_policy" title="confounding_robust_inference.data.BaseData.evaluate_policy"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseData.evaluate_policy()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018.sample" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseData.sample" title="confounding_robust_inference.data.BaseData.sample"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseData.sample()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyntheticDataKallusZhou2018Continuous</span></span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018Continuous"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous" title="Link to this definition"></a></dt>
+<dd><p>Synthetic data with continuous action space similar to Kallus and Zhou (2018).</p>
+<p>For this synthetic data, we know that the Tan’s box constraints with p_obs(t|x) = p_t_x and
+Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic
+data can be is used to test if the true policy value is actually included when a valid
+uncertainty set is given.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.evaluate_policy">
+<span class="sig-name descname"><span class="pre">evaluate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018Continuous.evaluate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.evaluate_policy" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseData.evaluate_policy" title="confounding_robust_inference.data.BaseData.evaluate_policy"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseData.evaluate_policy()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>n_mc</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/data.html#SyntheticDataKallusZhou2018Continuous.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.sample" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.data.BaseData.sample" title="confounding_robust_inference.data.BaseData.sample"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseData.sample()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.data.DataTuple" title="confounding_robust_inference.data.DataTuple"><em>DataTuple</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="API Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="estimators.html" class="btn btn-neutral float-right" title="confounding_robust_inference.estimators" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

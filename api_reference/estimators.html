@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>confounding_robust_inference.estimators &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="confounding_robust_inference.policies" href="policies.html" />
+    <link rel="prev" title="confounding_robust_inference.data" href="data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Examples</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data.html">confounding_robust_inference.data</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">confounding_robust_inference.estimators</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator"><code class="docutils literal notranslate"><span class="pre">BaseEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit"><code class="docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict"><code class="docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator"><code class="docutils literal notranslate"><span class="pre">BaseKCMCEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.fit"><code class="docutils literal notranslate"><span class="pre">BaseKCMCEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict"><code class="docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual"><code class="docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict_dual()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCEstimator"><code class="docutils literal notranslate"><span class="pre">DualKCMCEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCEstimator.fit"><code class="docutils literal notranslate"><span class="pre">DualKCMCEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCEstimator.predict"><code class="docutils literal notranslate"><span class="pre">DualKCMCEstimator.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCEstimator.predict_dual"><code class="docutils literal notranslate"><span class="pre">DualKCMCEstimator.predict_dual()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner"><code class="docutils literal notranslate"><span class="pre">DualKCMCPolicyLearner</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.fit"><code class="docutils literal notranslate"><span class="pre">DualKCMCPolicyLearner.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict"><code class="docutils literal notranslate"><span class="pre">DualKCMCPolicyLearner.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_ci"><code class="docutils literal notranslate"><span class="pre">DualKCMCPolicyLearner.predict_ci()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_policy"><code class="docutils literal notranslate"><span class="pre">DualKCMCPolicyLearner.predict_policy()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.DualNCMCEstimator"><code class="docutils literal notranslate"><span class="pre">DualNCMCEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualNCMCEstimator.fit"><code class="docutils literal notranslate"><span class="pre">DualNCMCEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.DualNCMCEstimator.predict"><code class="docutils literal notranslate"><span class="pre">DualNCMCEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.GPKCMCEstimator"><code class="docutils literal notranslate"><span class="pre">GPKCMCEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.GPKCMCEstimator.fit"><code class="docutils literal notranslate"><span class="pre">GPKCMCEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.GPKCMCEstimator.predict"><code class="docutils literal notranslate"><span class="pre">GPKCMCEstimator.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.GPKCMCEstimator.predict_dual"><code class="docutils literal notranslate"><span class="pre">GPKCMCEstimator.predict_dual()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.HajekEstimator"><code class="docutils literal notranslate"><span class="pre">HajekEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.HajekEstimator.fit"><code class="docutils literal notranslate"><span class="pre">HajekEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.HajekEstimator.predict"><code class="docutils literal notranslate"><span class="pre">HajekEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.IPWEstimator"><code class="docutils literal notranslate"><span class="pre">IPWEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.IPWEstimator.fit"><code class="docutils literal notranslate"><span class="pre">IPWEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.IPWEstimator.predict"><code class="docutils literal notranslate"><span class="pre">IPWEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.fit"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.fit_kpca"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.fit_kpca()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.predict"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_ci"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.predict_ci()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_dual"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.predict_dual()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_gic"><code class="docutils literal notranslate"><span class="pre">KCMCEstimator.predict_gic()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.QBEstimator"><code class="docutils literal notranslate"><span class="pre">QBEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.QBEstimator.fit"><code class="docutils literal notranslate"><span class="pre">QBEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.QBEstimator.predict"><code class="docutils literal notranslate"><span class="pre">QBEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#confounding_robust_inference.estimators.ZSBEstimator"><code class="docutils literal notranslate"><span class="pre">ZSBEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.ZSBEstimator.fit"><code class="docutils literal notranslate"><span class="pre">ZSBEstimator.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#confounding_robust_inference.estimators.ZSBEstimator.predict"><code class="docutils literal notranslate"><span class="pre">ZSBEstimator.predict()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="policies.html">confounding_robust_inference.policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">confounding_robust_inference.utils</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">confounding_robust_inference.estimators</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api_reference/estimators.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-confounding_robust_inference.estimators">
+<span id="confounding-robust-inference-estimators"></span><h1>confounding_robust_inference.estimators<a class="headerlink" href="#module-confounding_robust_inference.estimators" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/base.html#BaseEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.BaseEstimator" title="Link to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/base.html#BaseEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>Estimate the lower bound of the policy value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – Outcome variable. It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – Action variable (i.e. treatment). It must be of shape [n_samples].</p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – Context variable. It must be of shape [n_samples, n_dim] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – Nominal propensity p_obs(t|x). It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – Policy to be evaluated.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/base.html#BaseEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>Calculate the lower bound obtained by fit method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseKCMCEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseKCMCEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/base.html#BaseKCMCEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.BaseKCMCEstimator" title="Link to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseKCMCEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>Estimate the lower bound of the policy value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – Outcome variable. It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – Action variable (i.e. treatment). It must be of shape [n_samples].</p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – Context variable. It must be of shape [n_samples, n_dim] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – Nominal propensity p_obs(t|x). It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – Policy to be evaluated.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseKCMCEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>Calculate the lower bound obtained by fit method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual">
+<span class="sig-name descname"><span class="pre">predict_dual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/base.html#BaseKCMCEstimator.predict_dual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual" title="Link to this definition"></a></dt>
+<dd><p>Calculate the dual objective value of the minimization problem for the lower bound
+for individual samples of given data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – Outcome variable. It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – Action variable (i.e. treatment). It must be of shape [n_samples].</p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – Context variable. It must be of shape [n_samples, n_dim] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – Nominal propensity p_obs(t|x). It must be of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Lower bound estimate obtained by solving the dual problem</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DualKCMCEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCEstimator" title="Link to this definition"></a></dt>
+<dd><p>Dual Kernel Conditional Moment Constraints (KCMC) Estimator trained by
+stochastic gradient descent.</p>
+<p>This estimator solves the dual problem of KCMC estimator using stochastic gradient descent
+(SGD). Though the quality of the solution is better when solving the primal problem by a convex
+optimization solver, SGD gives an advantage of scalability when the number of samples is large.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Though SGD is a widely-adopted means of solving this type of problem, we may be able to
+improve it by stochastic ADMM (Ouyang, He, et. al., 2013).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of the constraint used. It must be one of “Tan_box”, “lr_box”, “KL”,
+“inverse_KL”, “Pearson_chi_squared”.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for f-divergence constraint satisfying gamma &gt;= 0.0.
+When gamma == 0.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>Gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for box constraints satisfying Gamma &gt;= 1.0.
+When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>D</strong> (<em>int</em>) – Dimension of the low-rank approximation used in the kernel quantile regression.</p></li>
+<li><p><strong>kernel</strong> (<em>Kernel</em><em> | </em><em>None</em>) – Kernel used in the low-rank kernel quantile regression.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_cls=&lt;class</span> <span class="pre">'torch.optim.sgd.SGD'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_kwargs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_steps=50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size=1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed=0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.fit" title="confounding_robust_inference.estimators.BaseKCMCEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>optimizer_cls</strong> (<em>Type</em><em>[</em><em>Optimizer</em><em>]</em>) – </p></li>
+<li><p><strong>optimizer_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>] </em><em>| </em><em>None</em>) – </p></li>
+<li><p><strong>n_steps</strong> (<em>int</em>) – </p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – </p></li>
+<li><p><strong>seed</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCEstimator" title="confounding_robust_inference.estimators.kcmc.DualKCMCEstimator"><em>DualKCMCEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCEstimator.predict_dual">
+<span class="sig-name descname"><span class="pre">predict_dual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCEstimator.predict_dual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCEstimator.predict_dual" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict_dual()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCPolicyLearner">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DualKCMCPolicyLearner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCPolicyLearner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner" title="Link to this definition"></a></dt>
+<dd><p>Dual Kernel Conditional Moment Constraints (KCMC) policy learner for mixed policy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of the constraint used. It must be one of “Tan_box”, “lr_box”.</p></li>
+<li><p><strong>Gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for box constraints satisfying Gamma &gt;= 1.0.
+When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>D</strong> (<em>int</em>) – Dimension of the low-rank approximation used in the kernel quantile regression.</p></li>
+<li><p><strong>kernel</strong> (<em>Kernel</em><em> | </em><em>None</em>) – Kernel used in the low-rank kernel quantile regression.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCPolicyLearner.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policies</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCPolicyLearner.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.fit" title="Link to this definition"></a></dt>
+<dd><p>Learns the policy that maximizes the lower bound of the given data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – Outcome variable. It must be a tensor of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – Action variable (i.e. treatment). It must be a tensor of shape [n_samples].</p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – Context variable. It must be a tensor of shape [n_samples, n_dim] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – Nominal propensity p_obs(t|x). It must be a tensor of shape [n_samples] and type
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+<li><p><strong>policies</strong> (<em>Sequence</em><em>[</em><a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a><em>]</em>) – Policies whose mixture constitutes the policy space for the policy learning.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner" title="confounding_robust_inference.estimators.kcmc.DualKCMCPolicyLearner"><em>DualKCMCPolicyLearner</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCPolicyLearner.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_ci">
+<span class="sig-name descname"><span class="pre">predict_ci</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCPolicyLearner.predict_ci"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_ci" title="Link to this definition"></a></dt>
+<dd><p>Calculate confidence interval of the lower bound.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alpha</strong> (<em>float</em>) – Significance level of used for the confidence interval.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[<em>Tensor</em>, <em>Tensor</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_policy">
+<span class="sig-name descname"><span class="pre">predict_policy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#DualKCMCPolicyLearner.predict_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualKCMCPolicyLearner.predict_policy" title="Link to this definition"></a></dt>
+<dd><p>Returns the learned optimal policy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="policies.html#confounding_robust_inference.policies.MixedPolicy" title="confounding_robust_inference.policies.MixedPolicy"><em>MixedPolicy</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualNCMCEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DualNCMCEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_hidden</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">64</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/ncmc.html#DualNCMCEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualNCMCEstimator" title="Link to this definition"></a></dt>
+<dd><p>Dual Neural Conditional Moment Constraints (NCMC) Estimator.</p>
+<p>This estimator solves the dual problem of the KCMC estimator by replacing
+the kernelized multiplier model by a neural network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of the constraint used. It must be one of “Tan_box”, “lr_box”, “KL”,
+“inverse_KL”,  “Pearson_chi_squared”.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for f-divergence constraint satisfying Gamma &gt;= 1.0.
+When gamma == 0.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>Gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for box constraints satisfying Gamma &gt;= 1.0.
+When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>n_layers</strong> (<em>int</em>) – The number of layers used by the neural network.</p></li>
+<li><p><strong>n_hidden</strong> (<em>int</em>) – The number of nodes in hidden layers of the neural network.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualNCMCEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_cls=&lt;class</span> <span class="pre">'torch.optim.sgd.SGD'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_kwargs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_steps=30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size=1024</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/ncmc.html#DualNCMCEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualNCMCEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="confounding_robust_inference.estimators.BaseEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+<li><p><strong>optimizer_cls</strong> (<em>Type</em><em>[</em><em>Optimizer</em><em>]</em>) – </p></li>
+<li><p><strong>optimizer_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>] </em><em>| </em><em>None</em>) – </p></li>
+<li><p><strong>n_steps</strong> (<em>int</em>) – </p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.DualNCMCEstimator" title="confounding_robust_inference.estimators.ncmc.DualNCMCEstimator"><em>DualNCMCEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.DualNCMCEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/ncmc.html#DualNCMCEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.DualNCMCEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.GPKCMCEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">GPKCMCEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#GPKCMCEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.GPKCMCEstimator" title="Link to this definition"></a></dt>
+<dd><p>Gaussian Process Kernel Conditional Moment Constraints (GP-KCMC) Estimator
+by Ishikawa, He (2023).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of the constraint used. It must be one of “box”, “KL”, “inverse_KL”,
+“squared_Hellinger”, “Pearson_chi_squared”, “Neyman_chi_squared”, and
+“total_variation”.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for f-divergence constraint satisfying gamma &gt;= 0.0.
+When gamma == 0.0, GP-KCMC estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>Gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for box constraints satisfying Gamma &gt;= 1.0.
+When Gamma == 1.0, GP-KCMC estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>D</strong> (<em>int</em>) – Dimension of the low-rank approximation used in the kernel quantile regression.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em>) – (Bayesian) Significance level of credible interval.</p></li>
+<li><p><strong>sigma2</strong> (<em>float</em>) – Noise level if the GP model.</p></li>
+<li><p><strong>kernel</strong> (<em>Kernel</em><em> | </em><em>None</em>) – Kernel used by Gaussian process.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Here, as low-rank GP is equivalent to Bayesian ridge regression with design matrix
+<span class="math notranslate nohighlight">\(\Psi_{n,d}=\psi_d(t_n, x_n)\)</span>. Thus, we use the following model with
+<span class="math notranslate nohighlight">\(\sigma^2\)</span> estimated by empirical Bayes as</p>
+<div class="math notranslate nohighlight">
+\begin{eqnarray}
+   \beta &amp;\sim N(0, I_d), \\
+   e &amp;= \Psi \beta + \varepsilon, \\
+   \varepsilon &amp;\sim N(0, \sigma^2 I_n). \\
+\end{eqnarray}</div><p>For this model, the posterior and the credible set (highest posterior density set) of
+<span class="math notranslate nohighlight">\(\beta\)</span> are</p>
+<div class="math notranslate nohighlight">
+\begin{eqnarray}
+   \beta | e &amp;\sim N(\mu_{\beta|e}, \Sigma_{\beta|e})  \\
+\end{eqnarray}</div><p>and</p>
+<div class="math notranslate nohighlight">
+\begin{eqnarray}
+   \mathrm{CI}_{\beta|e}(1 - \alpha) =
+   \{\beta:
+       (\beta - \mu_{\beta|e})^T \Sigma_{\beta|e}^{-1} (\beta - \mu_{\beta|e})
+       \leq \chi^2_d(1 - \alpha)
+   \},
+\end{eqnarray}</div><p>where <span class="math notranslate nohighlight">\(\mu_\beta=(\Psi^T\Psi+\sigma^2I_d)^{-1}\Psi^Te\)</span>
+and <span class="math notranslate nohighlight">\(\Sigma_\beta=(\Psi^T\Psi+\sigma^2I_d)^{-1}\)</span>. Therefore, the condition
+<span class="math notranslate nohighlight">\(0_d\in \mathrm{CI}_{\beta|e}(1 - \alpha)\)</span> can be written as</p>
+<div class="math notranslate nohighlight">
+\begin{equation}
+   \mu_{\beta|e}^T \Sigma_{\beta|e}^{-1} \mu_{\beta|e}
+   = e^T \Psi (\Psi^T\Psi + \sigma^2I_d)^{-1} \Psi^Te
+   \leq \chi^2_d(1 - \alpha).
+\end{equation}</div><dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.GPKCMCEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#GPKCMCEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.GPKCMCEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.fit" title="confounding_robust_inference.estimators.BaseKCMCEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.GPKCMCEstimator" title="confounding_robust_inference.estimators.kcmc.GPKCMCEstimator"><em>GPKCMCEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.GPKCMCEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#GPKCMCEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.GPKCMCEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.GPKCMCEstimator.predict_dual">
+<span class="sig-name descname"><span class="pre">predict_dual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#GPKCMCEstimator.predict_dual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.GPKCMCEstimator.predict_dual" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict_dual()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.HajekEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">HajekEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#HajekEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.HajekEstimator" title="Link to this definition"></a></dt>
+<dd><p>Hajek estimator.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.HajekEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#HajekEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.HajekEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="confounding_robust_inference.estimators.BaseEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.HajekEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#HajekEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.HajekEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.IPWEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IPWEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#IPWEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.IPWEstimator" title="Link to this definition"></a></dt>
+<dd><p>Inverse Probability Weightning (IPW) estimator.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.IPWEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#IPWEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.IPWEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="confounding_robust_inference.estimators.BaseEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.IPWEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#IPWEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.IPWEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">KCMCEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rescale_by_policy_prob</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator" title="Link to this definition"></a></dt>
+<dd><p>Kernel Conditional Moment Constraints (KCMC) Estimator by Ishikawa, He (2023).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of the constraint used. It must be one of “Tan_box”, “lr_box”, “KL”,
+“inverse_KL”, “squared_Hellinger”, “Pearson_chi_squared”,
+“Neyman_chi_squared”, and “total_variation”.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for f-divergence constraint satisfying gamma &gt;= 0.0.
+When gamma == 0.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>Gamma</strong> (<em>float</em><em> | </em><em>None</em>) – Sensitivity parameter for box constraints satisfying Gamma &gt;= 1.0.
+When Gamma == 1.0, QB estimator is equivalent to the IPW estimator.</p></li>
+<li><p><strong>D</strong> (<em>int</em>) – Dimension of the low-rank approximation used in the kernel quantile regression.</p></li>
+<li><p><strong>kernel</strong> (<em>Kernel</em><em> | </em><em>None</em>) – Kernel used in the low-rank kernel quantile regression.</p></li>
+<li><p><strong>rescale_by_policy_prob</strong> (<em>bool</em>) – Whether to rescale the kernel by policy probability $pi(t|x)$.
+Rescaling by policy can help obtaining tighter lower bounds in some cases such as
+continuous treatment. Note that rescaling the kernel by the policy probability makes
+the lower bound non-differentiable so this option should not be used for gradient-based
+policy learning.  One should still be able to make it differentiable by replaceing
+cvxpy with cvxpylayers to make use of differentiable convex programming.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.fit" title="confounding_robust_inference.estimators.BaseKCMCEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator" title="confounding_robust_inference.estimators.kcmc.KCMCEstimator"><em>KCMCEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.fit_kpca">
+<span class="sig-name descname"><span class="pre">fit_kpca</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.fit_kpca"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.fit_kpca" title="Link to this definition"></a></dt>
+<dd><p>Fit the kernel principal component analysis (KPCA) for the orthogonal function class.</p>
+<p>If this method is called before the <a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.fit" title="confounding_robust_inference.estimators.KCMCEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">fit()</span></code></a> method, fit method will use the KPCA model
+fit by this method. Fitting KPCA with your validation data can be useful when you use
+different data for your <a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.fit" title="confounding_robust_inference.estimators.KCMCEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">fit()</span></code></a> and <a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_dual" title="confounding_robust_inference.estimators.KCMCEstimator.predict_dual"><code class="xref py py-func docutils literal notranslate"><span class="pre">predict_dual()</span></code></a> methods.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>T</strong> (<em>Tensor</em>) – Action variable (i.e. treatment).</p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – Context variable. Its dtype must be
+confounding_robust_inference.types._DEFAULT_TORCH_FLOAT_DTYPE.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.KCMCEstimator" title="confounding_robust_inference.estimators.kcmc.KCMCEstimator"><em>KCMCEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.predict_ci">
+<span class="sig-name descname"><span class="pre">predict_ci</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">consider_second_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.predict_ci"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_ci" title="Link to this definition"></a></dt>
+<dd><p>Calculate confidence interval of the lower bound.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>alpha</strong> (<em>float</em>) – Significance level of used for the confidence interval.</p></li>
+<li><p><strong>consider_second_order</strong> (<em>bool</em>) – If True, consider the second order asymptotics similarly to GIC.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[<em>Tensor</em>, <em>Tensor</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.predict_dual">
+<span class="sig-name descname"><span class="pre">predict_dual</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.predict_dual"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_dual" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual" title="confounding_robust_inference.estimators.BaseKCMCEstimator.predict_dual"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseKCMCEstimator.predict_dual()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.KCMCEstimator.predict_gic">
+<span class="sig-name descname"><span class="pre">predict_gic</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/kcmc.html#KCMCEstimator.predict_gic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.KCMCEstimator.predict_gic" title="Link to this definition"></a></dt>
+<dd><p>Calculate the Generalized Information Criterion (GIC) of the lower bound.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.QBEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">QBEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#QBEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.QBEstimator" title="Link to this definition"></a></dt>
+<dd><p>Quantile balancing (QB) estimator by Dorn and Guo (2022).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Gamma</strong> (<em>float</em>) – Sensitivity parameter satisfying Gamma &gt;= 1.0. When Gamma == 1.0, QB estimator is
+equivalent to the IPW estimator.</p></li>
+<li><p><strong>D</strong> (<em>int</em>) – Dimension of the low-rank approximation used in the kernel quantile regression.</p></li>
+<li><p><strong>kernel</strong> (<em>Kernel</em><em> | </em><em>None</em>) – Kernel used in the low-rank kernel quantile regression.</p></li>
+<li><p><strong>const_type</strong> (<em>str</em>) – Type of box constraints. A valid argument is either “Tan_box” (Tan’s MSN) or
+“lr_box” (likelihood ratio).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.QBEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#QBEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.QBEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="confounding_robust_inference.estimators.BaseEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.QBEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#QBEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.QBEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.ZSBEstimator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ZSBEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">const_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gamma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_fractional_programming</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#ZSBEstimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.ZSBEstimator" title="Link to this definition"></a></dt>
+<dd><p>ZSB estimator from Zhao, Small, and Bhattacharya (2019) and MSM from Tan (2006).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Gamma</strong> (<em>float</em>) – Sensitivity parameter satisfying Gamma &gt;= 1.0. When Gamma == 1.0, ZSB estimator is
+equivalent to the Hajek estimator.</p></li>
+<li><p><strong>use_fractional_programming</strong> (<em>bool</em>) – If True, linear fractional programming is used as in
+Zhao, Small, and Bhattacharya (2019). If False, it does not use linear fractional
+programming for lower bound calculation and instead normalize nominal propensity p_t
+and uses takes more primitive approach used by the Marginal Sensitivity Model (MSM)
+by Tan (2006).</p></li>
+<li><p><strong>const_type</strong> (<em>str</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.ZSBEstimator.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">policy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#ZSBEstimator.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.ZSBEstimator.fit" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.fit" title="confounding_robust_inference.estimators.BaseEstimator.fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.fit()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Y</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>T</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>X</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>p_t</strong> (<em>Tensor</em>) – </p></li>
+<li><p><strong>policy</strong> (<a class="reference internal" href="policies.html#confounding_robust_inference.policies.BasePolicy" title="confounding_robust_inference.policies.BasePolicy"><em>BasePolicy</em></a>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator" title="confounding_robust_inference.estimators.base.BaseEstimator"><em>BaseEstimator</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="confounding_robust_inference.estimators.ZSBEstimator.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/confounding_robust_inference/estimators/baselines.html#ZSBEstimator.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#confounding_robust_inference.estimators.ZSBEstimator.predict" title="Link to this definition"></a></dt>
+<dd><p>See <a class="reference internal" href="#confounding_robust_inference.estimators.BaseEstimator.predict" title="confounding_robust_inference.estimators.BaseEstimator.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">BaseEstimator.predict()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Tensor</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="data.html" class="btn btn-neutral float-left" title="confounding_robust_inference.data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="policies.html" class="btn btn-neutral float-right" title="confounding_robust_inference.policies" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

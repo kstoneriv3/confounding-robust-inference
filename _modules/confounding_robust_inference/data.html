@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>confounding_robust_inference.data &mdash; confounding-robust-inference 1.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../_static/copybutton.js?v=a56c686a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            confounding-robust-inference
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference/index.html">API Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">LICENSE</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">confounding-robust-inference</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">confounding_robust_inference.data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for confounding_robust_inference.data</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">importlib</span> <span class="kn">import</span> <span class="n">resources</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">NamedTuple</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">runtime_checkable</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">norm</span>
+
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.policies</span> <span class="kn">import</span> <span class="n">BasePolicy</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.utils.docs</span> <span class="kn">import</span> <span class="n">WithDocstringsMeta</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.utils.propensity</span> <span class="kn">import</span> <span class="n">estimate_p_t_binary</span>
+<span class="kn">from</span> <span class="nn">confounding_robust_inference.utils.types</span> <span class="kn">import</span> <span class="n">as_tensor</span><span class="p">,</span> <span class="n">as_tensors</span>
+
+
+<div class="viewcode-block" id="DataTuple">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.DataTuple">[docs]</a>
+<span class="k">class</span> <span class="nc">DataTuple</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">U</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">p_t_x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="n">p_t_xu</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="BaseData">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.BaseData">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseData</span><span class="p">(</span><span class="n">Protocol</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">WithDocstringsMeta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for data used in the numerical experiments.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseData.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.BaseData.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n: Size of data</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Namedtuple that contains the generated data, whose attributes are</span>
+<span class="sd">            Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+<div class="viewcode-block" id="BaseData.evaluate_policy">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.BaseData.evaluate_policy">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unbiased Monte Carlo estimator of policy value.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            policy: Policy to be evaluated.</span>
+<span class="sd">            n_mc: The number of Monte Carlo samples.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Policy value estimator, which is a torch tensor differentiable w.r.t. policy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BaseDataWithLowerBound">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.BaseDataWithLowerBound">[docs]</a>
+<span class="nd">@runtime_checkable</span>
+<span class="k">class</span> <span class="nc">BaseDataWithLowerBound</span><span class="p">(</span><span class="n">BaseData</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for data with known ground truth lower bound.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseDataWithLowerBound.evaluate_policy_lower_bound">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.BaseDataWithLowerBound.evaluate_policy_lower_bound">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy_lower_bound</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ground truth lower bound under box constraints.</span>
+
+<span class="sd">        Unbiased Monte Carlo estimation is used to estimate the lower bound.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            Gamma: Parameteer of box constraints.</span>
+<span class="sd">            policy: Policy to be evaluated.</span>
+<span class="sd">            n_mc: The number of Monte Carlo samples.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Lower bound estimate, which is a torch tensor differentiable w.r.t. policy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SyntheticDataBinary">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataBinary">[docs]</a>
+<span class="k">class</span> <span class="nc">SyntheticDataBinary</span><span class="p">(</span><span class="n">BaseDataWithLowerBound</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Synthetic data with witn binary action space and a known lower bound.</span>
+
+<span class="sd">    This is synthetic data with binary action space, similar to Kallus and Zhou (2018).</span>
+<span class="sd">    For this data, we know that analytic expression of the lower bound of Tan&#39;s marginal sensitivity</span>
+<span class="sd">    model. Thus, this synthetic data can be is used to test the consistency and asypmtotic property</span>
+<span class="sd">    of estimators.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># We define constants in __init__ to avoid issues around different torch dtype.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">=</span> <span class="mf">2.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SyntheticDataBinary.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataBinary.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>  <span class="c1"># noqa: F841</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span><span class="p">)</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">p_t_x</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span>
+            <span class="o">+</span> <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="c1"># + xi * self.beta_xi</span>
+            <span class="c1"># + xi * self.beta_xi * T</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p_t_x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">p_t_x</span> <span class="o">*</span> <span class="n">T</span>
+        <span class="k">return</span> <span class="n">DataTuple</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">p_t_x</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataBinary.evaluate_policy">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="c1"># xi = (torch.rand(n_mc) &gt; 0.5).int()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">Y_po</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Y_po</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span>
+                <span class="o">+</span> <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">t</span>
+                <span class="c1"># + xi * self.beta_xi</span>
+                <span class="c1"># + xi * self.beta_xi * t</span>
+                <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span>
+                <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">t</span>
+                <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="c1"># We avoid sampling w.r.t. policy for its differentiatiability.</span>
+        <span class="n">pi</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mc</span><span class="p">),</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">+</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pi</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Y</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataBinary.evaluate_policy_lower_bound">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataBinary.evaluate_policy_lower_bound">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy_lower_bound</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">Gamma</span><span class="p">)</span>
+        <span class="c1"># See Proposition 2. of Dorn and Guo (2022).</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluate_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">)</span> <span class="o">-</span> <span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">tau</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">Gamma</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">Gamma</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SyntheticDataContinuous">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataContinuous">[docs]</a>
+<span class="k">class</span> <span class="nc">SyntheticDataContinuous</span><span class="p">(</span><span class="n">BaseDataWithLowerBound</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Synthetic data with with continuous action space and a known lower bound.</span>
+
+<span class="sd">    This is synthetic data with continuous action space, similar to Kallus and Zhou (2018).</span>
+<span class="sd">    For this data, we know that analytic expression of the lower bound of likelihood ratio</span>
+<span class="sd">    sensitivity model. Thus, this synthetic data can be is used to test the consistency and</span>
+<span class="sd">    asypmtotic property of estimators.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># We define constants in __init__ to avoid issues around different torch dtype.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">=</span> <span class="mf">2.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SyntheticDataContinuous.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataContinuous.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>  <span class="c1"># noqa: F841</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span>
+            <span class="o">+</span> <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="c1"># + xi * self.beta_xi</span>
+            <span class="c1"># + xi * self.beta_xi * T</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">DataTuple</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">p_t_x</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataContinuous.evaluate_policy">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="c1"># xi = (torch.rand(n_mc) &gt; 0.5).int()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span>
+            <span class="o">+</span> <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="c1"># + xi * self.beta_xi</span>
+            <span class="c1"># + xi * self.beta_xi * T</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Y</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataContinuous.evaluate_policy_lower_bound">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataContinuous.evaluate_policy_lower_bound">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy_lower_bound</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">Gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">Gamma</span><span class="p">)</span>
+        <span class="c1"># See Proposition 2. of Dorn and Guo (2022).</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluate_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">)</span> <span class="o">-</span> <span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">tau</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">Gamma</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">Gamma</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018">[docs]</a>
+<span class="k">class</span> <span class="nc">SyntheticDataKallusZhou2018</span><span class="p">(</span><span class="n">BaseData</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Synthetic data from Kallus and Zhou (2018).</span>
+
+<span class="sd">    For this synthetic data, we know that the Tan&#39;s box constraints with p_obs(t|x) = p_t_x and</span>
+<span class="sd">    Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic</span>
+<span class="sd">    data can be is used to test if the true policy value is actually included when a valid</span>
+<span class="sd">    uncertainty set is given.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># We define constants in __init__ to avoid issues around different torch dtype.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">=</span> <span class="mf">2.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">Y_po</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>  <span class="c1"># potential outcome</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Y_po</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">X</span> <span class="o">@</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">xi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">eps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">U</span> <span class="o">=</span> <span class="p">(</span><span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">X</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+        <span class="n">p_t_xu</span> <span class="o">=</span> <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="n">p_t_x</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">U</span> <span class="o">+</span> <span class="n">p_t_x</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">U</span><span class="p">))</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">p_t_xu</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">T</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p_t_x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">p_t_x</span> <span class="o">*</span> <span class="n">T</span>
+        <span class="n">p_t_xu</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p_t_xu</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">p_t_xu</span> <span class="o">*</span> <span class="n">T</span>
+        <span class="k">return</span> <span class="n">DataTuple</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">p_t_x</span><span class="p">,</span> <span class="n">p_t_xu</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018.evaluate_policy">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018.evaluate_policy">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">Y_po</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Y_po</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">X</span> <span class="o">@</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">xi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">eps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="c1"># We avoid sampling w.r.t. policy for its differentiatiability.</span>
+        <span class="n">pi</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mc</span><span class="p">),</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">+</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pi</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Y</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018Continuous">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous">[docs]</a>
+<span class="k">class</span> <span class="nc">SyntheticDataKallusZhou2018Continuous</span><span class="p">(</span><span class="n">BaseData</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Synthetic data with continuous action space similar to Kallus and Zhou (2018).</span>
+
+<span class="sd">    For this synthetic data, we know that the Tan&#39;s box constraints with p_obs(t|x) = p_t_x and</span>
+<span class="sd">    Gamma=1.5 is an uncertainty set that contains true propensity p(t|x, u). Thus, this synthetic</span>
+<span class="sd">    data can be is used to test if the true policy value is actually included when a valid</span>
+<span class="sd">    uncertainty set is given.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># We define constants in __init__ to avoid issues around different torch dtype.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">=</span> <span class="mf">2.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_p_t</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span> <span class="o">=</span> <span class="n">as_tensor</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018Continuous.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">Y_po</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Y_po</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">X</span> <span class="o">@</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">xi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">eps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">U</span> <span class="o">=</span> <span class="p">(</span><span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">Unif</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="n">Unif</span><span class="p">,</span> <span class="n">U</span> <span class="o">*</span> <span class="n">Unif</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">U</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">Unif</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">T</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">p_t_xu</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">U</span> <span class="o">*</span> <span class="n">Unif</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">U</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">Unif</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">DataTuple</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">p_t_x</span><span class="p">,</span> <span class="n">p_t_xu</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SyntheticDataKallusZhou2018Continuous.evaluate_policy">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.SyntheticDataKallusZhou2018Continuous.evaluate_policy">[docs]</a>
+    <span class="k">def</span> <span class="nf">evaluate_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">:</span> <span class="n">BasePolicy</span><span class="p">,</span> <span class="n">n_mc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu_x</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_mc</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">Y_po</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n_mc</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">Y_po</span><span class="p">[:,</span> <span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">X</span> <span class="o">@</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">xi</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_xi</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_xi_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta0_t</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+                <span class="o">+</span> <span class="n">eps</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">T</span> <span class="o">*</span> <span class="n">Y_po</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">Y</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NLSDataDornGuo2022">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.NLSDataDornGuo2022">[docs]</a>
+<span class="k">class</span> <span class="nc">NLSDataDornGuo2022</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;NLS data from Dorn and Guo (2022).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="n">DataTuple</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="NLSDataDornGuo2022.sample">
+<a class="viewcode-back" href="../../api_reference/data.html#confounding_robust_inference.data.NLSDataDornGuo2022.sample">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">667</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the NLS data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n: Size of data. Users are not supposed to provide n, but it is there to indicate</span>
+<span class="sd">                the sample size of this dataset is 667.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Namedtuple that contains the generated data, whose attributes are</span>
+<span class="sd">            Y, T, X, U, p_t_x, p_t_xu. Those attributes are of type Tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">!=</span> <span class="mi">667</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;n = </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> is given as the input but there are n = 667 data points in this dataset.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_and_prepare_data</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span></div>
+
+
+    <span class="k">def</span> <span class="nf">load_and_prepare_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataTuple</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">confounding_robust_inference</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">confounding_robust_inference</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;union1978.csv&quot;</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;age&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;black&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;educ76&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;smsa&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;south&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;married&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enrolled&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;educ78&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;manufacturing&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;occupation&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;union&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;wage&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">age</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">age</span> <span class="o">+</span> <span class="mi">12</span>  <span class="c1"># age was recorded in 1966</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;education&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">educ76</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">educ78</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">black</span> <span class="o">=</span> <span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">black</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">married</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">married</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">married</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">smsa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">smsa</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">smsa</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">manufacturing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="mi">206</span> <span class="o">&lt;=</span> <span class="n">df</span><span class="o">.</span><span class="n">manufacturing</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">manufacturing</span> <span class="o">&lt;=</span> <span class="mi">459</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="nb">int</span>
+        <span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">get_occupation_id</span><span class="p">(</span><span class="n">occ_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+            <span class="k">if</span> <span class="mi">401</span> <span class="o">&lt;=</span> <span class="n">occ_number</span> <span class="o">&lt;=</span> <span class="mi">545</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>  <span class="c1"># craftsman</span>
+            <span class="k">elif</span> <span class="mi">960</span> <span class="o">&lt;=</span> <span class="n">occ_number</span> <span class="o">&lt;=</span> <span class="mi">985</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">1</span>  <span class="c1"># laborer</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">2</span>  <span class="c1"># other</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">occupation</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">occupation</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">get_occupation_id</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="o">.</span><span class="n">occupation</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="o">.</span><span class="n">enrolled</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;educ76&quot;</span><span class="p">,</span> <span class="s2">&quot;educ78&quot;</span><span class="p">,</span> <span class="s2">&quot;enrolled&quot;</span><span class="p">])</span>
+
+        <span class="c1"># remove missing values</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="o">==</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="o">==</span> <span class="o">-</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">missing</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
+
+        <span class="c1"># df.describe()</span>
+
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">wage</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">union</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;wage&quot;</span><span class="p">,</span> <span class="s2">&quot;union&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="n">as_tensors</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">p_t_x</span> <span class="o">=</span> <span class="n">estimate_p_t_binary</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">DataTuple</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">p_t_x</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Kei Ishikawa.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
