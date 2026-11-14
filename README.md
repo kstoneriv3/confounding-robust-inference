@@ -45,7 +45,7 @@ If you found this library useful in your research, please consider citing [the f
 ```
 @article{ishikawa2023convex,
   title={A Convex Framework for Confounding Robust Inference},
-  author={Ishikawa, Kei and He, Naio and Kanamori, Takafumi},
+  author={Ishikawa, Kei and He, Niao and Kanamori, Takafumi},
   journal={arXiv preprint arXiv:2309.12450},
   year={2023}
 }
